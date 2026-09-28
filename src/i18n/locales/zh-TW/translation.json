@@ -705,7 +705,9 @@
     "modelLoadFailedUnknown": "未知模型",
     "pasteFailedTitle": "貼上文字失敗",
     "pasteFailed": "無法將文字貼上至目前作用中的應用程式。",
-    "transcriptionFailedTitle": "轉錄失敗"
+    "transcriptionFailedTitle": "轉錄失敗",
+    "windowCrashed": "視窗出了點問題，已經記錄下來。",
+    "reload": "重新載入"
   },
   "appLanguage": {
     "title": "應用程式語言",

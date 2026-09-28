@@ -31,6 +31,13 @@ pub fn yuyin_set_api_key(key: String) -> Result<(), String> {
     secrets::set_api_key(&key)
 }
 
+/// A frontend crash, written to the app log (a blank window says nothing).
+#[tauri::command]
+#[specta::specta]
+pub fn yuyin_report_error(message: String) {
+    log::error!("frontend: {message}");
+}
+
 /// Run the clean-up on sample text with the current settings and report
 /// errors (bad key, timeout) instead of falling back.
 #[tauri::command]

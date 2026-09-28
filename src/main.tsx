@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { platform } from "@tauri-apps/plugin-os";
 import App from "./App";
+import { RootBoundary } from "./yuyin/RootBoundary"; // Yuyin fork
 import { installCompatShims } from "./lib/compat";
 import {
   applyTheme,
@@ -28,6 +29,8 @@ useModelStore.getState().initialize();
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <App />
+    <RootBoundary>
+      <App />
+    </RootBoundary>
   </React.StrictMode>,
 );

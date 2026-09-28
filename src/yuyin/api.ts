@@ -23,4 +23,6 @@ export const yuyinApi = {
   /** An empty string removes the key from the Keychain. */
   setApiKey: (key: string) => invoke<void>("yuyin_set_api_key", { key }),
   testPolish: (text: string) => invoke<string>("yuyin_test_polish", { text }),
+  reportError: (message: string) =>
+    invoke<void>("yuyin_report_error", { message }).catch(() => {}),
 };
