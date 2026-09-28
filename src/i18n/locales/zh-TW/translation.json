@@ -7,7 +7,22 @@
     "quit": "結束",
     "cancel": "取消",
     "secureInputWarning": "⚠ 快捷鍵被 Secure Input 阻擋",
-    "pasteLastTranscript": "貼上上一次"
+    "pasteLastTranscript": "貼上上一次",
+    "menuAbout": "關於默契",
+    "menuHide": "隱藏默契",
+    "menuHideOthers": "隱藏其他",
+    "menuShowAll": "顯示全部",
+    "menuQuit": "結束默契",
+    "menuEdit": "編輯",
+    "menuUndo": "還原",
+    "menuRedo": "重做",
+    "menuCut": "剪下",
+    "menuCopy": "拷貝",
+    "menuPaste": "貼上",
+    "menuSelectAll": "全選",
+    "menuWindow": "視窗",
+    "menuMinimize": "縮到最小",
+    "menuCloseWindow": "關閉視窗"
   },
   "sidebar": {
     "general": "一般",
@@ -836,7 +851,7 @@
       "audioUploaded": "上傳的聲音",
       "appNamesSent": "送出 App 名稱、視窗標題",
       "textSent": "送去潤稿的文字",
-      "sentNote": "只有辨識出的文字會送到 {{to}}。聲音從頭到尾留在這台電腦。",
+      "sentNote": "送到 {{to}} 的只有辨識出的文字和你字典裡的詞。聲音從頭到尾留在這台電腦。",
       "nothingSent": "到目前為止，什麼都沒有離開這台電腦。",
       "seeWhatWasSent": "看每一次送出了什麼",
       "savedHint": "和每分鐘打 40 字相比，說話省下的時間"
@@ -865,6 +880,7 @@
       "notSent": "沒送",
       "sentText": "辨識出的文字 {{count}} 字 → {{to}}",
       "audio": "聲音",
+      "dictionary": "字典裡的詞（讓潤稿照你的寫法）",
       "appAndTitle": "App 名稱、視窗標題（只送出「風格：{{style}}」）",
       "delete": "刪除這一筆",
       "more": "載入更多"

@@ -1331,6 +1331,8 @@ pub fn change_app_language_setting(app: AppHandle, language: String) -> Result<(
 
     // Refresh the tray menu with the new language
     tray::update_tray_menu(&app);
+    // Yuyin fork: and the menu bar menu.
+    crate::yuyin::app_menu::apply(&app);
 
     Ok(())
 }

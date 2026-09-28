@@ -193,6 +193,12 @@ const EntryRow: React.FC<{
                   </span>
                 </div>
                 <div className="flex gap-[7px] items-baseline text-[12.5px] text-text">
+                  <span className="text-logo-primary font-semibold shrink-0">
+                    {t("moqi.history.sent")}
+                  </span>
+                  <span>{t("moqi.history.dictionary")}</span>
+                </div>
+                <div className="flex gap-[7px] items-baseline text-[12.5px] text-text">
                   <span className="text-positive font-semibold shrink-0">
                     {t("moqi.history.notSent")}
                   </span>

@@ -7,7 +7,22 @@
     "quit": "Quit",
     "cancel": "Cancel",
     "secureInputWarning": "⚠ Shortcuts blocked by Secure Input",
-    "pasteLastTranscript": "Paste Last Result"
+    "pasteLastTranscript": "Paste Last Result",
+    "menuAbout": "About Moqi",
+    "menuHide": "Hide Moqi",
+    "menuHideOthers": "Hide Others",
+    "menuShowAll": "Show All",
+    "menuQuit": "Quit Moqi",
+    "menuEdit": "Edit",
+    "menuUndo": "Undo",
+    "menuRedo": "Redo",
+    "menuCut": "Cut",
+    "menuCopy": "Copy",
+    "menuPaste": "Paste",
+    "menuSelectAll": "Select All",
+    "menuWindow": "Window",
+    "menuMinimize": "Minimize",
+    "menuCloseWindow": "Close Window"
   },
   "sidebar": {
     "general": "General",
@@ -836,7 +851,7 @@
       "audioUploaded": "Audio uploaded",
       "appNamesSent": "App names, window titles sent",
       "textSent": "Text sent for clean-up",
-      "sentNote": "Only the recognized text goes to {{to}}. Your voice never leaves this computer.",
+      "sentNote": "Only the recognized text and your dictionary words go to {{to}}. Your voice never leaves this computer.",
       "nothingSent": "So far, nothing has left this computer.",
       "seeWhatWasSent": "See what was sent each time",
       "savedHint": "Compared with typing 40 characters a minute"
@@ -865,6 +880,7 @@
       "notSent": "Kept",
       "sentText": "{{count}} characters of recognized text → {{to}}",
       "audio": "Audio",
+      "dictionary": "Your dictionary words (so the clean-up keeps your spelling)",
       "appAndTitle": "App name, window title (only “style: {{style}}” was sent)",
       "delete": "Delete",
       "more": "Load more"

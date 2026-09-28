@@ -12,6 +12,7 @@ import {
   type OnboardingPreviewStep,
 } from "@/components/settings";
 import { useSettings } from "@/hooks/useSettings";
+import { useOsType } from "@/hooks/useOsType";
 import { YuyinMark } from "../YuyinLogo";
 import { HomePage } from "./HomePage";
 import { HistoryPage } from "./HistoryPage";
@@ -49,6 +50,9 @@ export const MoqiWindow: React.FC<{
 }> = ({ onPreviewOnboarding, initialPage = "home" }) => {
   const { t, i18n } = useTranslation();
   const { settings } = useSettings();
+  // The macOS title bar is transparent, so the sidebar leaves room for the
+  // traffic lights; other platforms keep their own title bar.
+  const macTitleBar = useOsType() === "macos";
   const [page, setPage] = useState<Page>(initialPage);
   const [version, setVersion] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -71,7 +75,10 @@ export const MoqiWindow: React.FC<{
   return (
     <div dir={i18n.dir()} className="h-screen flex select-none cursor-default">
       <aside className="w-[200px] shrink-0 h-full flex flex-col border-e border-hairline px-2.5 pb-3.5">
-        <div data-tauri-drag-region className="h-[52px] shrink-0" />
+        <div
+          data-tauri-drag-region
+          className={`${macTitleBar ? "h-[52px]" : "h-5"} shrink-0`}
+        />
         <div className="flex items-center gap-[9px] px-2.5 pb-[18px]">
           <YuyinMark size={26} />
           <span className="text-[17px] font-semibold tracking-[-0.01em] text-text">

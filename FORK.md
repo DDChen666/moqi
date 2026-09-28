@@ -8,6 +8,7 @@
 ## 為什麼從 Handy 改，不從頭寫
 
 Handy 已經做好 Mac 上最難的部分：
+
 - 抓得到 Fn、右 Option 的全域快捷鍵
 - 不搶焦點的懸浮窗
 - 按住說話、切換的狀態機
@@ -33,4 +34,6 @@ Handy 已經做好 Mac 上最難的部分：
 - Handy 的「新功能」彈窗拿掉了（內容是 Handy 的版本紀錄）。版本號從 0.1.0 重新開始。
 - MIT 不包含商標，所以不能用「Handy」這個名字。App 名稱（默契／Moqi）、識別碼（`tw.yuyin.dictation`）都已經換掉，自動更新也關了。
   - 自動更新在 `settings.rs` 的 `update_checks_forced_disabled()`。
-- 模型下載目前還是走 Handy 的伺服器（`blob.handy.computer`）。之後要改成自己的來源，或使用者自行下載。
+- 辨識模型 Qwen3-ASR 1.7B 從 Hugging Face 的 `handy-computer/Qwen3-ASR-1.7B-gguf` 下載，版本和檔案雜湊都固定寫在 `src-tauri/src/catalog/catalog.json`。
+  - 靜音偵測模型 `silero_vad_v4.onnx` 打包在 App 裡。
+  - Handy 其他舊模型還是從 `blob.handy.computer` 下載，但新介面已經不顯示它們。

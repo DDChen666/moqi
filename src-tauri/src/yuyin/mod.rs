@@ -14,6 +14,7 @@
 //! 4. before paste → [`session::focus_changed`] decides whether pasting is
 //!    still safe; if the user switched windows we copy instead.
 
+pub mod app_menu;
 pub mod chunker;
 pub mod commands;
 pub mod config;

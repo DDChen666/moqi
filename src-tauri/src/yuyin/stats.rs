@@ -26,11 +26,28 @@ struct Record {
     polish: String,
     press_to_release_ms: Option<u64>,
     release_to_output_ms: Option<u64>,
+    chars_in: u64,
     chars_out: u64,
     app: String,
-    sent_chars: u64,
+    sent_chars: Option<u64>,
     sent_to: Option<String>,
     file_name: Option<String>,
+}
+
+impl Record {
+    /// How much text went to which clean-up service. Lines written before
+    /// `sent_chars` was logged fall back to the transcript length whenever a
+    /// clean-up was attempted (DeepSeek was the only service then), so the
+    /// privacy card never under-reports.
+    fn sent(&self) -> (u64, Option<String>) {
+        match self.sent_chars {
+            Some(chars) => (chars, self.sent_to.clone()),
+            None if self.polish == "ok" || self.polish == "failed" => {
+                (self.chars_in, Some("api.deepseek.com".to_string()))
+            }
+            None => (0, None),
+        }
+    }
 }
 
 #[derive(Serialize, Type, Debug, PartialEq)]
@@ -116,6 +133,7 @@ pub fn history_meta(app: &AppHandle) -> HashMap<String, EntryMeta> {
         .into_iter()
         .filter_map(|r| {
             let file_name = r.file_name.clone()?;
+            let (sent_chars, sent_to) = r.sent();
             Some((
                 file_name,
                 EntryMeta {
@@ -123,8 +141,8 @@ pub fn history_meta(app: &AppHandle) -> HashMap<String, EntryMeta> {
                     context: r.context,
                     level: r.level,
                     polish: r.polish,
-                    sent_chars: r.sent_chars,
-                    sent_to: r.sent_to,
+                    sent_chars,
+                    sent_to,
                     spoke_ms: r.press_to_release_ms,
                     output_ms: r.release_to_output_ms,
                 },
@@ -189,7 +207,8 @@ fn compute(
         })
         .collect();
 
-    let mut sent_to: Vec<String> = records.iter().filter_map(|r| r.sent_to.clone()).collect();
+    let sent: Vec<(u64, Option<String>)> = records.iter().map(Record::sent).collect();
+    let mut sent_to: Vec<String> = sent.iter().filter_map(|(_, to)| to.clone()).collect();
     sent_to.sort();
     sent_to.dedup();
 
@@ -206,7 +225,7 @@ fn compute(
         privacy: Privacy {
             audio_uploaded_ms: 0,
             app_names_sent: 0,
-            text_sent_chars: records.iter().map(|r| r.sent_chars).sum(),
+            text_sent_chars: sent.iter().map(|(chars, _)| chars).sum(),
             sent_to,
         },
     }
@@ -230,7 +249,7 @@ mod tests {
                 .timestamp_millis(),
             chars_out: chars,
             press_to_release_ms: Some(spoke_ms),
-            sent_chars: sent,
+            sent_chars: Some(sent),
             sent_to: (sent > 0).then(|| "api.deepseek.com".to_string()),
             ..Default::default()
         }
@@ -290,5 +309,22 @@ not json
         assert_eq!(records.len(), 2);
         assert_eq!(records[0].chars_out, 68);
         assert!(records[1].file_name.is_none());
+    }
+
+    #[test]
+    fn old_lines_count_the_text_they_sent() {
+        let text = r#"{"at":1,"level":"tidy","polish":"ok","chars_in":68,"chars_out":66}
+{"at":2,"level":"raw","polish":"skipped","chars_in":20,"chars_out":20}
+{"at":3,"level":"tidy","polish":"skipped","chars_in":30,"chars_out":30,"sent_chars":0}
+{"at":4,"level":"tidy","polish":"ok","chars_in":40,"chars_out":40,"sent_chars":40,"sent_to":"api.example.com"}"#;
+        let s = compute(&parse(text), day("2026-09-28"), date_of_utc);
+        assert_eq!(s.privacy.text_sent_chars, 108);
+        assert_eq!(
+            s.privacy.sent_to,
+            vec![
+                "api.deepseek.com".to_string(),
+                "api.example.com".to_string()
+            ]
+        );
     }
 }
