@@ -345,6 +345,7 @@ fn create_audio_recorder(
             let router = stream_router;
             move |frame| {
                 router.feed(frame);
+                crate::yuyin::chunker::on_speech(frame); // Yuyin fork
             }
         });
 

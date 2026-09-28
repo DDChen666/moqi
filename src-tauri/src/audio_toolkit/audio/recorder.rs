@@ -656,7 +656,8 @@ fn handle_frame(
             .unwrap_or(VadFrame::Speech(samples))
         {
             VadFrame::Speech(buf) => emit(buf),
-            VadFrame::Noise => {}
+            // Yuyin fork: pauses let the chunker transcribe while the user speaks.
+            VadFrame::Noise => crate::yuyin::chunker::on_silence(samples.len()),
         }
     } else {
         emit(samples);

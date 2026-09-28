@@ -560,6 +560,20 @@ fn run_headless_transcription(app: &AppHandle, args: &CliArgs) -> i32 {
     let load_ms = load_start.elapsed().as_millis() as u64;
     let bound_backend = tm.current_backend();
 
+    // Yuyin fork: replay through the VAD and the chunker (tools/chunk_eval.py).
+    if std::env::var_os("YUYIN_CHUNKED").is_some() {
+        return match crate::yuyin::replay::run(app, &samples) {
+            Ok(replay) => {
+                println!("{}", serde_json::to_string(&replay).unwrap_or_default());
+                0
+            }
+            Err(e) => {
+                eprintln!("error: replay failed: {e}");
+                1
+            }
+        };
+    }
+
     let runs = args.repeat.unwrap_or(1).max(1);
     let mut times_ms: Vec<u64> = Vec::new();
     let mut text = String::new();

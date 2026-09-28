@@ -530,6 +530,14 @@ impl ShortcutAction for TranscribeAction {
         if model_supports_streaming {
             tm.start_stream();
         }
+        // Yuyin fork: models without their own streaming (Qwen3-ASR) get
+        // transcribed piece by piece at pauses while the user speaks.
+        crate::yuyin::chunker::begin(
+            app,
+            vad_policy == VadPolicy::Offline
+                && settings.model_unload_timeout
+                    != crate::settings::ModelUnloadTimeout::Immediately,
+        );
         let plan_elapsed = plan_started.elapsed();
 
         // Sizing the overlay follows the same advertised capability. A model that
@@ -719,6 +727,7 @@ impl ShortcutAction for TranscribeAction {
 
                 if rm.was_cancelled_since(cancel_generation) {
                     debug!("Transcription operation cancelled after recording stop");
+                    crate::yuyin::chunker::abandon(); // Yuyin fork
                     tm.cancel_stream();
                     utils::hide_recording_overlay(&ah);
                     set_tray_state(&ah, TrayIconState::Idle);
@@ -731,6 +740,7 @@ impl ShortcutAction for TranscribeAction {
                     );
                     // Tear down any streaming worker so its channel doesn't leak
                     // and block the next start_stream.
+                    crate::yuyin::chunker::abandon(); // Yuyin fork
                     tm.cancel_stream();
                     utils::hide_recording_overlay(&ah);
                     set_tray_state(&ah, TrayIconState::Idle);
@@ -757,7 +767,13 @@ impl ShortcutAction for TranscribeAction {
                         // surfaced instead — the worker may still hold the engine,
                         // so a batch fallback would contend with it.
                         Ok(Some(text)) if !text.trim().is_empty() => Ok(text),
-                        Ok(_) => tm.transcribe(samples),
+                        // Yuyin fork: join the pieces transcribed while speaking.
+                        Ok(_) => {
+                            let audio_samples = samples.len();
+                            let (text, stats) = crate::yuyin::chunker::transcribe(&tm, samples);
+                            crate::yuyin::session::mark_chunks(audio_samples, stats);
+                            text
+                        }
                         Err(err) => Err(err),
                     };
 

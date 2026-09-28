@@ -53,6 +53,8 @@ struct Session {
     chars_in: usize,
     chars_out: usize,
     focus_changed: bool,
+    audio_samples: Option<usize>,
+    chunks: super::chunker::Stats,
 }
 
 static CURRENT: Lazy<Mutex<Option<Session>>> = Lazy::new(|| Mutex::new(None));
@@ -114,6 +116,8 @@ pub fn begin(app: &AppHandle, pressed: Instant) {
             chars_in: 0,
             chars_out: 0,
             focus_changed: false,
+            audio_samples: None,
+            chunks: Default::default(),
         });
     }
 }
@@ -147,6 +151,14 @@ pub fn mark_transcribed(chars: usize) {
     with_session(|s| {
         s.transcribed = Some(Instant::now());
         s.chars_in = chars;
+    });
+}
+
+/// How much audio there was and how much was left after release (step 2b).
+pub fn mark_chunks(audio_samples: usize, stats: super::chunker::Stats) {
+    with_session(|s| {
+        s.audio_samples = Some(audio_samples);
+        s.chunks = stats;
     });
 }
 
@@ -202,6 +214,12 @@ struct TimingRecord {
     focus_changed: bool,
     chars_in: usize,
     chars_out: usize,
+    /// Audio the recorder kept (speech plus VAD padding).
+    audio_ms: Option<usize>,
+    /// Pieces transcribed while the user was still speaking.
+    pieces: usize,
+    /// Audio left to transcribe after release.
+    tail_ms: Option<usize>,
 }
 
 fn between(a: Option<Instant>, b: Option<Instant>) -> Option<u128> {
@@ -209,6 +227,10 @@ fn between(a: Option<Instant>, b: Option<Instant>) -> Option<u128> {
         (Some(a), Some(b)) if b >= a => Some((b - a).as_millis()),
         _ => None,
     }
+}
+
+fn samples_to_ms(samples: usize) -> usize {
+    samples / 16
 }
 
 /// Text was pasted (or copied): write the timing record, clear the session
@@ -233,6 +255,11 @@ pub fn finish(app: &AppHandle) -> Option<PolishOutcome> {
         focus_changed: s.focus_changed,
         chars_in: s.chars_in,
         chars_out: s.chars_out,
+        audio_ms: s.audio_samples.map(samples_to_ms),
+        pieces: s.chunks.pieces,
+        tail_ms: s
+            .audio_samples
+            .map(|_| samples_to_ms(s.chunks.tail_samples)),
     };
     let Ok(dir) = app.path().app_data_dir() else {
         return Some(outcome);

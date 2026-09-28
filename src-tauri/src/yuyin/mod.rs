@@ -6,12 +6,15 @@
 //! Flow of one dictation:
 //! 1. key press   → [`session::begin`] records the frontmost app, its focused
 //!    window and the writing context (chat / to-AI / notes / other).
-//! 2. release     → Handy records and transcribes as usual.
+//! 2. speaking    → [`chunker`] transcribes the speech so far at each pause,
+//!    in the background; release  → only the tail after the last pause is
+//!    left to transcribe.
 //! 3. transcript  → [`polish::polish`] tidies it with the M0-validated prompt,
 //!    unless the level is Raw. Any failure falls back to the raw transcript.
 //! 4. before paste → [`session::focus_changed`] decides whether pasting is
 //!    still safe; if the user switched windows we copy instead.
 
+pub mod chunker;
 pub mod commands;
 pub mod config;
 pub mod context;
@@ -19,5 +22,6 @@ pub mod defaults;
 pub mod output;
 pub mod polish;
 pub mod prompt;
+pub mod replay;
 pub mod secrets;
 pub mod session;
