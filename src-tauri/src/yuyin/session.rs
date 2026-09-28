@@ -98,6 +98,8 @@ struct ContextEvent {
     context: Context,
     app: String,
     hands_free: bool,
+    /// Where this dictation's text will go ("DeepSeek"), or none: all local.
+    sends_to: Option<String>,
 }
 
 /// Key press (at `pressed`): remember where the user is typing.
@@ -113,6 +115,7 @@ pub fn begin(app: &AppHandle, pressed: Instant) {
         context,
         app: app_name.clone(),
         hands_free: HANDS_FREE.load(Ordering::SeqCst),
+        sends_to: super::polish::destination(&super::config::get(app)),
     };
     let _ = app.emit_to("recording_overlay", "yuyin-context", event);
     debug!(

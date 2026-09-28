@@ -26,10 +26,23 @@ pub enum Level {
     Polish,
 }
 
+/// Where the clean-up runs (settings: 潤稿服務).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum Service {
+    /// DeepSeek flash with reasoning off, the M0 pick.
+    Deepseek,
+    /// Any OpenAI-compatible endpoint at `base_url` / `model`.
+    Custom,
+    /// Nothing leaves the machine: every level behaves like 原話.
+    None,
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
 #[serde(default)]
 pub struct YuyinConfig {
     pub level: Level,
+    pub service: Service,
     /// Personal dictionary: correct spellings of names and terms the user says.
     pub vocab: Vec<String>,
     /// Any OpenAI-compatible endpoint; DeepSeek by default.
@@ -43,6 +56,7 @@ impl Default for YuyinConfig {
     fn default() -> Self {
         Self {
             level: Level::Tidy,
+            service: Service::Deepseek,
             vocab: DEFAULT_VOCAB.iter().map(|s| s.to_string()).collect(),
             base_url: "https://api.deepseek.com".into(),
             // M0: flash with reasoning off is 0.8 s median; v4-pro is slower and worse.
@@ -52,52 +66,32 @@ impl Default for YuyinConfig {
     }
 }
 
-/// The owner's everyday tools (same list as the M0 evaluation's vocab.txt).
+/// A new install's dictionary: names Taiwanese speakers commonly mix into
+/// Chinese. The user edits it on the dictionary page.
 const DEFAULT_VOCAB: &[&str] = &[
     "Claude",
     "Claude Code",
     "ChatGPT",
-    "DeepSeek",
     "Gemini",
-    "OpenRouter",
-    "Qwen",
-    "SenseVoice",
-    "Whisper",
-    "ElevenLabs",
-    "Typeless",
-    "Handy",
-    "Tauri",
-    "React",
-    "Rust",
-    "Python",
-    "Next.js",
-    "Supabase",
-    "Vercel",
-    "Cloudflare",
+    "DeepSeek",
     "GitHub",
-    "repo",
+    "API",
     "API key",
-    ".env",
-    "config.toml",
-    "JSON",
-    "CSV",
-    "MCP",
-    "skill",
-    "vibe coder",
+    "repo",
+    "prompt",
     "MVP",
-    "landing page",
-    "pipeline",
-    "TTS",
-    "Gumroad",
-    "Patreon",
-    "Substack",
-    "Discord",
-    "LINE",
-    "Messenger",
-    "Keep",
+    "PR",
+    "Python",
+    "JavaScript",
+    "React",
     "Notion",
+    "Slack",
+    "Google Meet",
+    "LINE",
     "YouTube",
-    "Bilibili",
+    "Excel",
+    "PowerPoint",
+    "PDF",
 ];
 
 static CONFIG: Lazy<RwLock<Option<YuyinConfig>>> = Lazy::new(|| RwLock::new(None));
@@ -159,7 +153,8 @@ mod tests {
         let cfg: YuyinConfig = serde_json::from_str(r#"{"level":"raw"}"#).unwrap();
         assert_eq!(cfg.level, Level::Raw);
         assert_eq!(cfg.model, "deepseek-flash");
-        assert!(cfg.vocab.contains(&"Supabase".to_string()));
+        assert!(cfg.vocab.contains(&"Claude Code".to_string()));
+        assert_eq!(cfg.service, Service::Deepseek);
     }
 
     #[test]

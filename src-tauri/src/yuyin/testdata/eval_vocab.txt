@@ -1,0 +1,46 @@
+# 個人詞典（測試用）：用戶常用的工具和詞，一行一個，只寫正確寫法。
+# 故意不寫引擎的錯法（例如 Gomora），也混入測試句沒出現的詞，避免變成背答案。
+Claude
+Claude Code
+ChatGPT
+DeepSeek
+Gemini
+OpenRouter
+Qwen
+SenseVoice
+Whisper
+ElevenLabs
+Typeless
+Handy
+Tauri
+React
+Rust
+Python
+Next.js
+Supabase
+Vercel
+Cloudflare
+GitHub
+repo
+API key
+.env
+config.toml
+JSON
+CSV
+MCP
+skill
+vibe coder
+MVP
+landing page
+pipeline
+TTS
+Gumroad
+Patreon
+Substack
+Discord
+LINE
+Messenger
+Keep
+Notion
+YouTube
+Bilibili

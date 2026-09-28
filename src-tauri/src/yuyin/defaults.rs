@@ -24,7 +24,7 @@ const PREINSTALLED_MODEL_FILE: &str = "Qwen3-ASR-1.7B-Q5_K_M.gguf";
 const PREINSTALLED_MODEL_ID: &str = "handy-computer/Qwen3-ASR-1.7B-gguf/Qwen3-ASR-1.7B-Q5_K_M.gguf";
 
 /// Bump when a release adds a step to [`apply_upgrades`].
-const DEFAULTS_VERSION: u32 = 1;
+const DEFAULTS_VERSION: u32 = 2;
 const DEFAULTS_VERSION_FILE: &str = "yuyin_defaults_version";
 
 /// Everything, in order. Called once per launch.
@@ -93,6 +93,11 @@ fn apply_upgrades(app: &AppHandle) {
         // read the transcript, and mark it transient so clipboard managers
         // (Maccy, Paste, Windows clipboard history) skip it.
         s.reliable_paste = true;
+    }
+    if applied < 2 {
+        // History is where a failed paste is recovered (criterion 4) and
+        // where the user checks what was sent; Handy keeps only 5.
+        s.history_limit = s.history_limit.max(100);
     }
     settings::write_settings(app, s);
     if let Err(e) = std::fs::write(&path, DEFAULTS_VERSION.to_string()) {

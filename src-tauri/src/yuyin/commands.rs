@@ -47,6 +47,33 @@ pub fn yuyin_history_meta(
     super::stats::history_meta(&app)
 }
 
+/// History's 重貼: go back to the app the user was in and paste `text` there.
+/// Hiding Moqi hands focus back to the previous app, then the paste follows
+/// the normal path (clipboard restored afterwards).
+#[tauri::command]
+#[specta::specta]
+pub async fn yuyin_repaste(app: AppHandle, text: String) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    app.hide().map_err(|e| e.to_string())?;
+    #[cfg(not(target_os = "macos"))]
+    if let Some(window) = tauri::Manager::get_webview_window(&app, "main") {
+        window.hide().map_err(|e| e.to_string())?;
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        // Let the window server finish switching the frontmost app.
+        std::thread::sleep(std::time::Duration::from_millis(250));
+        let (tx, rx) = std::sync::mpsc::channel();
+        let app_for_paste = app.clone();
+        app.run_on_main_thread(move || {
+            let _ = tx.send(crate::utils::paste(text, app_for_paste));
+        })
+        .map_err(|e| e.to_string())?;
+        rx.recv().map_err(|e| e.to_string())?
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 /// A frontend crash, written to the app log (a blank window says nothing).
 #[tauri::command]
 #[specta::specta]

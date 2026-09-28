@@ -824,7 +824,7 @@ impl ShortcutAction for TranscribeAction {
                                     show_processing_overlay(&ah);
                                 }
                             }
-                            let Some(processed) = complete_unless_cancelled(
+                            let Some((processed, converted)) = complete_unless_cancelled(
                                 // Yuyin fork: Handy's output step (Traditional
                                 // Chinese), then our context-aware clean-up.
                                 async {
@@ -834,6 +834,10 @@ impl ShortcutAction for TranscribeAction {
                                         handy_post_process,
                                     )
                                     .await;
+                                    // Yuyin fork: history's 原話 is the Traditional
+                                    // Chinese text before clean-up, not the engine's
+                                    // Simplified output.
+                                    let converted = processed.final_text.clone();
                                     if !handy_post_process {
                                         let polished = crate::yuyin::polish::polish(
                                             &ah,
@@ -845,7 +849,7 @@ impl ShortcutAction for TranscribeAction {
                                         }
                                         processed.final_text = polished;
                                     }
-                                    processed
+                                    (processed, converted)
                                 },
                                 || rm.was_cancelled_since(cancel_generation),
                             )
@@ -870,7 +874,7 @@ impl ShortcutAction for TranscribeAction {
                                 crate::yuyin::session::mark_saved(&file_name);
                                 if let Err(err) = hm.save_entry(
                                     file_name,
-                                    transcription,
+                                    converted,
                                     post_process,
                                     processed.post_processed_text.clone(),
                                     processed.post_process_prompt.clone(),

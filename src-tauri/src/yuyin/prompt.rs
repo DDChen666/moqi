@@ -116,10 +116,16 @@ mod tests {
 
     /// The app must send exactly the prompt the M0 evaluation measured.
     /// Fixtures are generated from `M0_引擎盲測/eval/polish_eval.py` (V3) with
-    /// the eval's vocab.txt; regenerate them when the eval prompt changes.
+    /// the eval's vocab.txt (copied to testdata); regenerate them when the
+    /// eval prompt changes.
     #[test]
     fn matches_the_evaluated_prompt_v3() {
-        let vocab = crate::yuyin::config::YuyinConfig::default().vocab;
+        let vocab: Vec<String> = include_str!("testdata/eval_vocab.txt")
+            .lines()
+            .map(str::trim)
+            .filter(|l| !l.is_empty() && !l.starts_with('#'))
+            .map(String::from)
+            .collect();
         let to_ai = system_prompt(Level::Tidy, Context::ToAi, &vocab).unwrap();
         assert_eq!(to_ai, include_str!("testdata/prompt_v3_tidy_to_ai.txt"));
         let chat = system_prompt(Level::Tidy, Context::Chat, &vocab).unwrap();

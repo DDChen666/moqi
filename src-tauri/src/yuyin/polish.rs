@@ -90,7 +90,7 @@ async fn run(
     context: Context,
     transcript: &str,
 ) -> Result<Option<String>, String> {
-    if transcript.trim().is_empty() {
+    if transcript.trim().is_empty() || cfg.service == config::Service::None {
         return Ok(None);
     }
     let Some(system) = prompt::system_prompt(cfg.level, context, &cfg.vocab) else {
@@ -222,5 +222,21 @@ mod host_tests {
         assert_eq!(host("https://api.deepseek.com"), "api.deepseek.com");
         assert_eq!(host("https://openrouter.ai/api/v1"), "openrouter.ai");
         assert_eq!(host("http://localhost:11434/v1"), "localhost:11434");
+    }
+}
+
+/// What the capsule names as the destination ("文字 → DeepSeek"), or `None`
+/// when this dictation will not send anything.
+pub fn destination(cfg: &YuyinConfig) -> Option<String> {
+    if cfg.level == config::Level::Raw || cfg.service == config::Service::None {
+        return None;
+    }
+    if !secrets::has_api_key() {
+        return None;
+    }
+    if cfg.base_url.contains("deepseek.com") {
+        Some("DeepSeek".into())
+    } else {
+        Some(host(&cfg.base_url))
     }
 }
