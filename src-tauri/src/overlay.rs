@@ -630,6 +630,12 @@ pub fn show_processing_overlay(app_handle: &AppHandle) {
     show_overlay_state(app_handle, "processing");
 }
 
+/// Yuyin fork: "copied, not pasted" notice, shown when the focused window
+/// changed during dictation (see yuyin::output).
+pub fn show_copied_overlay(app_handle: &AppHandle) {
+    show_overlay_state(app_handle, "copied");
+}
+
 /// Updates the overlay window position based on current settings
 pub fn update_overlay_position(app_handle: &AppHandle) {
     // Positioning queries monitors/cursor (GDK/Xlib on Linux) and moves the

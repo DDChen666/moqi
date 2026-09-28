@@ -16,7 +16,8 @@
     "postProcessing": "Post Process",
     "history": "History",
     "debug": "Debug",
-    "about": "About"
+    "about": "About",
+    "yuyin": "Clean-up"
   },
   "onboarding": {
     "subtitle": "To get started, choose a transcription model",
@@ -702,7 +703,8 @@
   },
   "overlay": {
     "transcribing": "Transcribing...",
-    "processing": "Processing..."
+    "processing": "Processing...",
+    "copied": "Copied — paste it yourself"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} may be blocking 1 shortcut",
@@ -714,5 +716,46 @@
     "learnMore": "How to fix",
     "recorderBlocked": "Can't record shortcuts right now — macOS Secure Input is blocking key events. Resolve the Secure Input warning first.",
     "dismiss": "Dismiss"
+  },
+  "yuyin": {
+    "title": "Clean-up",
+    "level": {
+      "title": "Clean-up level",
+      "description": "How much the text may be changed after speech recognition.",
+      "options": {
+        "raw": "Raw",
+        "tidy": "Tidy (default)",
+        "polish": "Polish"
+      },
+      "descriptions": {
+        "raw": "Punctuation and Traditional Chinese only. Nothing is sent online; fastest.",
+        "tidy": "Removes fillers, keeps your final wording when you correct yourself, turns spoken lists into lists. Never swaps your words.",
+        "polish": "Rewrites speech into written style."
+      }
+    },
+    "apiKey": {
+      "title": "Clean-up service API key",
+      "description": "DeepSeek by default. Stored in the macOS Keychain, never in a file.",
+      "placeholder": "Paste your API key",
+      "placeholderSet": "A key is saved — paste a new one to replace it",
+      "save": "Save",
+      "clear": "Remove",
+      "statusSet": "✓ Key saved in the Keychain",
+      "statusNotSet": "No key yet: without one, text is pasted as recognized."
+    },
+    "vocab": {
+      "title": "Personal dictionary",
+      "description": "One term per line: names and words you say often, spelled the way you want them.",
+      "placeholder": "Supabase\nClaude Code"
+    },
+    "test": {
+      "title": "Try it",
+      "description": "Clean up sample text with the current settings.",
+      "sample": "呃，就是那個，我想要它在我按住 fn 鍵的時候開始錄音，放開就自動貼上",
+      "button": "Run",
+      "running": "Running…",
+      "needKey": "Save an API key first."
+    },
+    "privacy": "Only the recognized text is sent to the clean-up service. Your voice, app names and window titles stay on this Mac."
   }
 }

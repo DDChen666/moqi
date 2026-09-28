@@ -591,6 +591,7 @@ impl ShortcutAction for TranscribeAction {
 
                     debug!("Microphone is receiving samples; recording is ready");
                     utils::emit_recording_ready(&app_clone);
+                    crate::yuyin::session::mark_mic_ready(); // Yuyin fork: criterion 1 timing
 
                     // The start chime is a readiness cue, so it must follow the
                     // first real input callback rather than Stream::play() or a
@@ -611,6 +612,11 @@ impl ShortcutAction for TranscribeAction {
         }
 
         if recording_error.is_none() {
+            // Yuyin fork: after capture has started (so it adds no latency),
+            // remember where the user is typing and open the LLM connection.
+            crate::yuyin::session::begin(start_time);
+            crate::yuyin::polish::warm_up(app);
+
             // Dynamically register the cancel shortcut in a separate task to avoid deadlock
             shortcut::register_cancel_shortcut(app);
         } else {
@@ -655,6 +661,11 @@ impl ShortcutAction for TranscribeAction {
         let stop_time = Instant::now();
         debug!("TranscribeAction::stop called for binding: {}", binding_id);
 
+        // Yuyin fork: time the release; taps shorter than 0.3 s produce no
+        // text (criterion 3) and are dropped like an empty recording below.
+        crate::yuyin::session::mark_released();
+        let is_tap = crate::yuyin::session::was_tap();
+
         let ah = app.clone();
         let rm = Arc::clone(&app.state::<Arc<AudioRecordingManager>>());
         let tm = Arc::clone(&app.state::<Arc<TranscriptionManager>>());
@@ -679,10 +690,16 @@ impl ShortcutAction for TranscribeAction {
         rm.remove_mute();
 
         // Play audio feedback for recording stop
-        play_feedback_sound(app, SoundType::Stop);
+        if !is_tap {
+            play_feedback_sound(app, SoundType::Stop);
+        }
 
         let binding_id = binding_id.to_string(); // Clone binding_id for the async task
-        let post_process = self.post_process;
+                                                 // Yuyin fork: our clean-up runs on the normal shortcut unless the
+                                                 // level is Raw; Handy's own post-processing keeps its separate shortcut.
+        let handy_post_process = self.post_process;
+        let post_process = handy_post_process
+            || crate::yuyin::config::get(app).level != crate::yuyin::config::Level::Raw;
         let cancel_generation = rm.cancel_generation();
 
         tauri::async_runtime::spawn(async move {
@@ -708,8 +725,10 @@ impl ShortcutAction for TranscribeAction {
                     return;
                 }
 
-                if samples.is_empty() {
-                    debug!("Recording produced no audio samples; skipping persistence");
+                if samples.is_empty() || is_tap {
+                    debug!(
+                        "Recording produced no audio samples (or was a tap); skipping persistence"
+                    );
                     // Tear down any streaming worker so its channel doesn't leak
                     // and block the next start_stream.
                     tm.cancel_stream();
@@ -775,6 +794,7 @@ impl ShortcutAction for TranscribeAction {
 
                     match transcription_result {
                         Ok(transcription) => {
+                            crate::yuyin::session::mark_transcribed(transcription.chars().count()); // Yuyin fork
                             debug!(
                                 "Transcription completed in {:?}: '{}'",
                                 transcription_time.elapsed(),
@@ -789,7 +809,28 @@ impl ShortcutAction for TranscribeAction {
                                 }
                             }
                             let Some(processed) = complete_unless_cancelled(
-                                process_transcription_output(&ah, &transcription, post_process),
+                                // Yuyin fork: Handy's output step (Traditional
+                                // Chinese), then our context-aware clean-up.
+                                async {
+                                    let mut processed = process_transcription_output(
+                                        &ah,
+                                        &transcription,
+                                        handy_post_process,
+                                    )
+                                    .await;
+                                    if !handy_post_process {
+                                        let polished = crate::yuyin::polish::polish(
+                                            &ah,
+                                            &processed.final_text,
+                                        )
+                                        .await;
+                                        if polished != processed.final_text {
+                                            processed.post_processed_text = Some(polished.clone());
+                                        }
+                                        processed.final_text = polished;
+                                    }
+                                    processed
+                                },
                                 || rm.was_cancelled_since(cancel_generation),
                             )
                             .await
@@ -836,9 +877,19 @@ impl ShortcutAction for TranscribeAction {
                                         return;
                                     }
 
-                                    match utils::paste(final_text, ah_clone.clone()) {
+                                    // Yuyin fork: if the user switched windows since
+                                    // pressing the key, copy instead of pasting into
+                                    // the wrong place (criterion 7).
+                                    let copy_only = crate::yuyin::session::focus_changed();
+                                    let result = if copy_only {
+                                        crate::yuyin::output::copy_instead(&ah_clone, &final_text)
+                                    } else {
+                                        utils::paste(final_text, ah_clone.clone())
+                                    };
+                                    crate::yuyin::session::finish(&ah_clone);
+                                    match result {
                                         Ok(()) => debug!(
-                                            "Text pasted successfully in {:?}",
+                                            "Text output successfully in {:?}",
                                             paste_time.elapsed()
                                         ),
                                         Err(e) => {
@@ -846,7 +897,9 @@ impl ShortcutAction for TranscribeAction {
                                             let _ = ah_clone.emit("paste-error", ());
                                         }
                                     }
-                                    utils::hide_recording_overlay(&ah_clone);
+                                    if !copy_only {
+                                        utils::hide_recording_overlay(&ah_clone);
+                                    }
                                     set_tray_state(&ah_clone, TrayIconState::Idle);
                                 })
                                 .unwrap_or_else(|e| {

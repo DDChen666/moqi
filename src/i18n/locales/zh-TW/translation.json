@@ -16,7 +16,8 @@
     "postProcessing": "後處理",
     "history": "歷史紀錄",
     "debug": "偵錯",
-    "about": "關於"
+    "about": "關於",
+    "yuyin": "潤稿"
   },
   "onboarding": {
     "subtitle": "首先，請選擇一種模型",
@@ -699,7 +700,8 @@
   },
   "overlay": {
     "transcribing": "正在轉錄...",
-    "processing": "處理中..."
+    "processing": "處理中...",
+    "copied": "已複製，請自己貼上"
   },
   "whatsNew": {
     "title": "Handy v{{version}} 新功能"
@@ -714,5 +716,46 @@
     "learnMore": "如何解決",
     "recorderBlocked": "目前無法錄製快捷鍵——macOS 的 Secure Input 正在阻擋按鍵事件。請先解決 Secure Input 警告。",
     "dismiss": "關閉"
+  },
+  "yuyin": {
+    "title": "潤稿",
+    "level": {
+      "title": "潤飾程度",
+      "description": "語音辨識之後，文字可以被改動多少。",
+      "options": {
+        "raw": "原話",
+        "tidy": "整理（預設）",
+        "polish": "潤飾"
+      },
+      "descriptions": {
+        "raw": "只加標點、轉繁體。不連網，最快。",
+        "tidy": "去贅字；講錯改口時只留最後的說法；口頭列點變清單。不換你的用詞。",
+        "polish": "重組句子，讀起來像寫的，不像說的。"
+      }
+    },
+    "apiKey": {
+      "title": "潤稿服務的 API key",
+      "description": "預設用 DeepSeek。key 存在 Mac 的鑰匙圈，不會寫進任何檔案。",
+      "placeholder": "貼上你的 API key",
+      "placeholderSet": "已經存了一把 key；貼上新的會取代",
+      "save": "儲存",
+      "clear": "移除",
+      "statusSet": "✓ key 已存在鑰匙圈",
+      "statusNotSet": "還沒有 key：沒有的話，會直接貼上辨識的原文。"
+    },
+    "vocab": {
+      "title": "個人詞典",
+      "description": "一行一個：你常說的名字和詞，寫成你要的樣子。",
+      "placeholder": "Supabase\nClaude Code"
+    },
+    "test": {
+      "title": "試試看",
+      "description": "用目前的設定整理一段範例文字。",
+      "sample": "呃，就是那個，我想要它在我按住 fn 鍵的時候開始錄音，放開就自動貼上",
+      "button": "執行",
+      "running": "處理中…",
+      "needKey": "請先儲存 API key。"
+    },
+    "privacy": "只有辨識出來的文字會送去潤稿服務。你的聲音、App 名稱和視窗標題都留在這台 Mac。"
   }
 }

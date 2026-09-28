@@ -12,6 +12,7 @@ import {
   AboutSettings,
   PostProcessingSettings,
   ModelsSettings,
+  YuyinSettings,
 } from "./settings";
 
 export type SidebarSection = keyof typeof SECTIONS_CONFIG;
@@ -36,6 +37,13 @@ export const SECTIONS_CONFIG = {
     labelKey: "sidebar.general",
     icon: HandyHand,
     component: GeneralSettings,
+    enabled: () => true,
+  },
+  // Yuyin fork: context-aware clean-up settings
+  yuyin: {
+    labelKey: "sidebar.yuyin",
+    icon: Sparkles,
+    component: YuyinSettings,
     enabled: () => true,
   },
   history: {

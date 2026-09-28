@@ -24,6 +24,8 @@ mod transcription_coordinator;
 mod tray;
 mod tray_i18n;
 mod utils;
+// Yuyin fork: our product layer (see src/yuyin/mod.rs).
+mod yuyin;
 
 pub use cli::CliArgs;
 #[cfg(debug_assertions)]
@@ -648,6 +650,12 @@ pub fn run(cli_args: CliArgs) {
 
     let specta_builder = Builder::<tauri::Wry>::new()
         .commands(collect_commands![
+            // Yuyin fork
+            yuyin::commands::yuyin_get_config,
+            yuyin::commands::yuyin_set_config,
+            yuyin::commands::yuyin_has_api_key,
+            yuyin::commands::yuyin_set_api_key,
+            yuyin::commands::yuyin_test_polish,
             shortcut::change_binding,
             shortcut::reset_binding,
             shortcut::change_shortcut_activation_setting,
@@ -943,7 +951,7 @@ pub fn run(cli_args: CliArgs) {
             // for portable mode (redirects WebView2 cache to portable Data dir)
             let mut win_builder =
                 tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::App("/".into()))
-                    .title("Handy")
+                    .title("Yuyin")
                     .inner_size(680.0, 570.0)
                     .min_inner_size(680.0, 570.0)
                     .resizable(true)
@@ -981,6 +989,10 @@ pub fn run(cli_args: CliArgs) {
                     }
                 });
             }
+
+            // Yuyin fork: write our defaults into the settings store on first
+            // launch, before anything reads them.
+            yuyin::defaults::apply_first_run(app.handle());
 
             let mut settings = get_settings(app.handle());
 
