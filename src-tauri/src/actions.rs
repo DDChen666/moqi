@@ -866,6 +866,8 @@ impl ShortcutAction for TranscribeAction {
 
                             // Save to history if WAV was saved
                             if wav_saved {
+                                // Yuyin fork: join the timing record to this entry.
+                                crate::yuyin::session::mark_saved(&file_name);
                                 if let Err(err) = hm.save_entry(
                                     file_name,
                                     transcription,

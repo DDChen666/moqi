@@ -112,6 +112,9 @@ async fn run(
         body["thinking"] = json!({"type": "disabled"});
     }
 
+    // Transparency (history, privacy card): what leaves the Mac, and where.
+    session::mark_sent(transcript.chars().count(), host(&cfg.base_url));
+
     let started = std::time::Instant::now();
     let response = CLIENT
         .post(endpoint(cfg, "/chat/completions"))
@@ -198,5 +201,26 @@ mod tests {
     #[test]
     fn guard_allows_short_inputs_to_shrink() {
         assert!(check_output("呃，好啊好啊", "好啊").is_ok());
+    }
+}
+
+/// `https://api.deepseek.com/v1` → `api.deepseek.com`
+fn host(base_url: &str) -> String {
+    let rest = base_url.split("://").nth(1).unwrap_or(base_url);
+    rest.split(['/', '?', '#'])
+        .next()
+        .unwrap_or(rest)
+        .to_string()
+}
+
+#[cfg(test)]
+mod host_tests {
+    use super::host;
+
+    #[test]
+    fn host_of_base_url() {
+        assert_eq!(host("https://api.deepseek.com"), "api.deepseek.com");
+        assert_eq!(host("https://openrouter.ai/api/v1"), "openrouter.ai");
+        assert_eq!(host("http://localhost:11434/v1"), "localhost:11434");
     }
 }

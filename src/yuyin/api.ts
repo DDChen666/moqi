@@ -14,6 +14,38 @@ export interface YuyinConfig {
   timeout_ms: number;
 }
 
+/** Home page numbers, computed locally from the timings log (stats.rs). */
+export interface YuyinStats {
+  dictations: number;
+  chars: number;
+  speaking_ms: number;
+  saved_ms: number;
+  chars_per_minute: number;
+  active_days: number;
+  current_streak: number;
+  longest_streak: number;
+  /** The last 26 weeks, oldest first, starting on a Sunday. */
+  days: { date: string; dictations: number }[];
+  privacy: {
+    audio_uploaded_ms: number;
+    app_names_sent: number;
+    text_sent_chars: number;
+    sent_to: string[];
+  };
+}
+
+/** What the history page shows under an entry. */
+export interface EntryMeta {
+  app: string;
+  context: "chat" | "to_ai" | "notes" | "other";
+  level: Level | null;
+  polish: "skipped" | "ok" | "failed";
+  sent_chars: number;
+  sent_to: string | null;
+  spoke_ms: number | null;
+  output_ms: number | null;
+}
+
 export const yuyinApi = {
   getConfig: () => invoke<YuyinConfig>("yuyin_get_config"),
   setConfig: (config: YuyinConfig) =>
@@ -23,6 +55,9 @@ export const yuyinApi = {
   /** An empty string removes the key from the Keychain. */
   setApiKey: (key: string) => invoke<void>("yuyin_set_api_key", { key }),
   testPolish: (text: string) => invoke<string>("yuyin_test_polish", { text }),
+  stats: () => invoke<YuyinStats>("yuyin_stats"),
+  /** Keyed by the history entry's recording file name. */
+  historyMeta: () => invoke<Record<string, EntryMeta>>("yuyin_history_meta"),
   reportError: (message: string) =>
     invoke<void>("yuyin_report_error", { message }).catch(() => {}),
 };

@@ -31,6 +31,22 @@ pub fn yuyin_set_api_key(key: String) -> Result<(), String> {
     secrets::set_api_key(&key)
 }
 
+/// The home page's numbers (all computed locally from the timings log).
+#[tauri::command]
+#[specta::specta]
+pub fn yuyin_stats(app: AppHandle) -> super::stats::Stats {
+    super::stats::stats(&app)
+}
+
+/// Per-entry details for the history page, keyed by the recording's file name.
+#[tauri::command]
+#[specta::specta]
+pub fn yuyin_history_meta(
+    app: AppHandle,
+) -> std::collections::HashMap<String, super::stats::EntryMeta> {
+    super::stats::history_meta(&app)
+}
+
 /// A frontend crash, written to the app log (a blank window says nothing).
 #[tauri::command]
 #[specta::specta]

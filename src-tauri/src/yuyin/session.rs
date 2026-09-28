@@ -5,8 +5,10 @@
 //! - Before pasting we check that the same window still has focus
 //!   (acceptance criterion 7).
 //! - Each stage is timed and appended to `yuyin_timings.jsonl` in the app data
-//!   directory: numbers and the context label only, never any text. This is
-//!   the evidence for acceptance criteria 1 and 2.
+//!   directory: numbers, the context label, the app's display name and where
+//!   text was sent — never what the user said. It is the evidence for
+//!   acceptance criteria 1 and 2, and feeds the home page and history
+//!   ([`super::stats`]). It never leaves the machine.
 
 use std::io::Write;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -55,6 +57,13 @@ struct Session {
     focus_changed: bool,
     audio_samples: Option<usize>,
     chunks: super::chunker::Stats,
+    /// Shown in history ("LINE"); stays on this machine.
+    app_name: String,
+    /// Characters of transcript sent to the clean-up service, and its host.
+    sent_chars: usize,
+    sent_to: Option<String>,
+    /// The history entry's recording, to join history with this record.
+    file_name: Option<String>,
 }
 
 static CURRENT: Lazy<Mutex<Option<Session>>> = Lazy::new(|| Mutex::new(None));
@@ -99,9 +108,10 @@ pub fn begin(app: &AppHandle, pressed: Instant) {
         None => (None, None),
     };
     let context = front.as_ref().map(classify).unwrap_or(Context::Other);
+    let app_name = front.as_ref().map(display_name).unwrap_or_default();
     let event = ContextEvent {
         context,
-        app: front.as_ref().map(display_name).unwrap_or_default(),
+        app: app_name.clone(),
         hands_free: HANDS_FREE.load(Ordering::SeqCst),
     };
     let _ = app.emit_to("recording_overlay", "yuyin-context", event);
@@ -128,6 +138,10 @@ pub fn begin(app: &AppHandle, pressed: Instant) {
             focus_changed: false,
             audio_samples: None,
             chunks: Default::default(),
+            app_name,
+            sent_chars: 0,
+            sent_to: None,
+            file_name: None,
         });
     }
 }
@@ -170,6 +184,19 @@ pub fn mark_chunks(audio_samples: usize, stats: super::chunker::Stats) {
         s.audio_samples = Some(audio_samples);
         s.chunks = stats;
     });
+}
+
+/// Just before the transcript goes to the clean-up service.
+pub fn mark_sent(chars: usize, host: String) {
+    with_session(|s| {
+        s.sent_chars = chars;
+        s.sent_to = Some(host);
+    });
+}
+
+/// The history entry for this dictation was saved.
+pub fn mark_saved(file_name: &str) {
+    with_session(|s| s.file_name = Some(file_name.to_string()));
 }
 
 pub fn mark_polished(level: Level, outcome: PolishOutcome, chars_out: usize) {
@@ -230,6 +257,10 @@ struct TimingRecord {
     pieces: usize,
     /// Audio left to transcribe after release.
     tail_ms: Option<usize>,
+    app: String,
+    sent_chars: usize,
+    sent_to: Option<String>,
+    file_name: Option<String>,
 }
 
 fn between(a: Option<Instant>, b: Option<Instant>) -> Option<u128> {
@@ -237,6 +268,13 @@ fn between(a: Option<Instant>, b: Option<Instant>) -> Option<u128> {
         (Some(a), Some(b)) if b >= a => Some((b - a).as_millis()),
         _ => None,
     }
+}
+
+pub fn timings_path(app: &AppHandle) -> Option<std::path::PathBuf> {
+    app.path()
+        .app_data_dir()
+        .ok()
+        .map(|dir| dir.join(TIMINGS_FILE))
 }
 
 fn samples_to_ms(samples: usize) -> usize {
@@ -270,8 +308,12 @@ pub fn finish(app: &AppHandle) -> Option<PolishOutcome> {
         tail_ms: s
             .audio_samples
             .map(|_| samples_to_ms(s.chunks.tail_samples)),
+        app: s.app_name,
+        sent_chars: s.sent_chars,
+        sent_to: s.sent_to,
+        file_name: s.file_name,
     };
-    let Ok(dir) = app.path().app_data_dir() else {
+    let Some(path) = timings_path(app) else {
         return Some(outcome);
     };
     let Ok(line) = serde_json::to_string(&record) else {
@@ -280,7 +322,7 @@ pub fn finish(app: &AppHandle) -> Option<PolishOutcome> {
     let result = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
-        .open(dir.join(TIMINGS_FILE))
+        .open(path)
         .and_then(|mut f| writeln!(f, "{line}"));
     if let Err(e) = result {
         warn!("Failed to write yuyin timing record: {e}");

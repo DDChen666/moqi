@@ -25,3 +25,4 @@ pub mod prompt;
 pub mod replay;
 pub mod secrets;
 pub mod session;
+pub mod stats;

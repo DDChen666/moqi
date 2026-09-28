@@ -675,6 +675,8 @@ pub fn run(cli_args: CliArgs) {
             yuyin::commands::yuyin_set_api_key,
             yuyin::commands::yuyin_test_polish,
             yuyin::commands::yuyin_report_error,
+            yuyin::commands::yuyin_stats,
+            yuyin::commands::yuyin_history_meta,
             shortcut::change_binding,
             shortcut::reset_binding,
             shortcut::change_shortcut_activation_setting,
