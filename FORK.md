@@ -29,7 +29,8 @@ Handy 已經做好 Mac 上最難的部分：
 
 ## 授權
 
-- 保留原本的 `LICENSE`（Copyright (c) 2025 CJ Pais）。App 的「關於」頁面也要顯示 Handy 的授權聲明。
+- 保留原本的 `LICENSE`（Copyright (c) 2025 CJ Pais）。App 的「關於」頁面（`src/yuyin/YuyinAbout.tsx`）會顯示 Handy 的致謝和完整授權條款，條款內容直接讀這個 `LICENSE` 檔。
+- Handy 的「新功能」彈窗拿掉了（內容是 Handy 的版本紀錄）。版本號從 0.1.0 重新開始。
 - MIT 不包含商標，所以不能用「Handy」這個名字。App 名稱（默契／Moqi）、識別碼（`tw.yuyin.dictation`）都已經換掉，自動更新也關了。
   - 自動更新在 `settings.rs` 的 `update_checks_forced_disabled()`。
 - 模型下載目前還是走 Handy 的伺服器（`blob.handy.computer`）。之後要改成自己的來源，或使用者自行下載。

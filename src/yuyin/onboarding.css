@@ -1,0 +1,145 @@
+/* Yuyin fork: the ready screen after onboarding. Motion is one entrance, one
+   prism glint across the icon, and a slow keycap press that mimics
+   hold-to-talk. */
+
+:root {
+  --yy-spring: cubic-bezier(0.22, 1, 0.36, 1);
+  --yy-soft: cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.yy-rise {
+  animation: yy-rise 0.7s var(--yy-soft) both;
+  animation-delay: calc(0.12s + var(--i, 0) * 70ms);
+}
+
+@keyframes yy-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.yy-ready-icon {
+  position: relative;
+  width: 76px;
+  height: 76px;
+  filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.22));
+  animation: yy-pop 0.8s var(--yy-spring) both;
+}
+
+@keyframes yy-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.86);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* The squircle sits at 100–924 of the 1024 artboard, corner radius 185. */
+.yy-ready-icon::after {
+  content: "";
+  position: absolute;
+  inset: 7.4px;
+  border-radius: 13.7px;
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    rgba(201, 215, 255, 0.3) 46%,
+    rgba(255, 255, 255, 0.42) 50%,
+    rgba(255, 217, 230, 0.3) 54%,
+    transparent 60%
+  );
+  background-size: 300% 100%;
+  mix-blend-mode: screen;
+  pointer-events: none;
+  animation: yy-glint 1.5s cubic-bezier(0.4, 0, 0.2, 1) 0.6s both;
+}
+
+@keyframes yy-glint {
+  0% {
+    background-position: 100% 0;
+    opacity: 0;
+  }
+  15%,
+  85% {
+    opacity: 1;
+  }
+  100% {
+    background-position: 0% 0;
+    opacity: 0;
+  }
+}
+
+.yy-key {
+  --up:
+    0 0 0 0.5px rgba(0, 0, 0, 0.16), 0 2px 0 rgba(0, 0, 0, 0.09),
+    0 4px 10px rgba(0, 0, 0, 0.07), inset 0 0.5px 0 rgba(255, 255, 255, 0.08);
+  --down:
+    0 0 0 0.5px rgba(0, 0, 0, 0.16), 0 0 0 rgba(0, 0, 0, 0.09),
+    0 1px 3px rgba(0, 0, 0, 0.07), inset 0 0.5px 0 rgba(255, 255, 255, 0.08),
+    0 0 0 4px color-mix(in srgb, var(--color-logo-primary) 14%, transparent);
+  position: relative;
+  display: block;
+  width: 86px;
+  height: 60px;
+  border-radius: 10px;
+  background: linear-gradient(
+    180deg,
+    var(--color-surface),
+    color-mix(in srgb, var(--color-surface) 94%, #000)
+  );
+  box-shadow: var(--up);
+  color: var(--color-text);
+  font-family: -apple-system, system-ui, sans-serif;
+  animation: yy-press 3.6s ease-in-out 1.6s infinite;
+}
+
+.yy-key-glyph {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+.yy-key-name {
+  position: absolute;
+  bottom: 8px;
+  left: 10px;
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+@keyframes yy-press {
+  0%,
+  10%,
+  58%,
+  100% {
+    transform: none;
+    box-shadow: var(--up);
+  }
+  14%,
+  52% {
+    transform: translateY(2px);
+    box-shadow: var(--down);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yy-rise,
+  .yy-ready-icon,
+  .yy-ready-icon::after,
+  .yy-key {
+    animation: none;
+  }
+  .yy-ready-icon::after {
+    opacity: 0;
+  }
+}

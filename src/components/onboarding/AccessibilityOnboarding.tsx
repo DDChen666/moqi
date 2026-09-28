@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { commands } from "@/bindings";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { YuyinMark } from "@/yuyin/YuyinLogo"; // Yuyin fork
+import { ReadyScreen } from "@/yuyin/ReadyScreen"; // Yuyin fork
 import { Accessibility, Mic, Check, Loader2 } from "lucide-react";
 
 interface AccessibilityOnboardingProps {
@@ -43,6 +44,8 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
     accessibility: "checking",
     microphone: "checking",
   });
+  // Yuyin fork: permissions were granted during this visit (not already on launch).
+  const [justGranted, setJustGranted] = useState(false);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const errorCountRef = useRef<number>(0);
@@ -226,7 +229,9 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
             clearInterval(pollingRef.current);
             pollingRef.current = null;
           }
-          await completeOnboarding();
+          // Yuyin fork: just granted — show the ready screen; its button
+          // calls completeOnboarding().
+          setJustGranted(true);
         }
 
         // Reset error count on success
@@ -308,6 +313,10 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
 
   // Yuyin fork: an Apple-style welcome — the app icon, one sentence on what
   // the app does, and a grouped list with a row per permission.
+  if (allGranted && justGranted) {
+    return <ReadyScreen onStart={completeOnboarding} />;
+  }
+
   if (allGranted) {
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center gap-3 bg-background">
@@ -375,7 +384,7 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
         <h1 className="mt-5 text-[26px] font-bold tracking-[-0.02em] text-text">
           {t("onboarding.permissions.welcome")}
         </h1>
-        <p className="mt-2 text-[14px] text-text/65 text-center leading-relaxed max-w-[34ch]">
+        <p className="mt-2 text-[14px] text-text/65 text-center leading-relaxed whitespace-pre-line [word-break:keep-all] [text-wrap:balance]">
           {t("onboarding.permissions.intro")}
         </p>
         <div className="mt-7 w-full bg-surface rounded-[12px] divide-y divide-hairline shadow-[0_0_0_0.5px_var(--color-hairline),0_1px_3px_rgba(0,0,0,0.05)]">

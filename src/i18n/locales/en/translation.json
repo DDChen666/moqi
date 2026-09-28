@@ -121,8 +121,13 @@
         "requestFailed": "Failed to request permission. Please try again."
       },
       "welcome": "Welcome to Moqi",
-      "intro": "Hold the right Option key and speak. Let go, and the text appears at your cursor. First, allow two things.",
+      "intro": "Hold the right Option key and speak. Let go, and the text appears at your cursor.\nFirst, allow two things.",
       "privacy": "Your voice is recognized on this Mac and never uploaded."
+    },
+    "ready": {
+      "title": "You're all set",
+      "slogan": "Hold the right Option key and let Moqi do the typing.",
+      "start": "Get Started"
     }
   },
   "modelSelector": {
@@ -638,9 +643,22 @@
         "ggml": {
           "title": "ggml",
           "description": "High-performance tensor library for on-device machine learning inference",
-          "details": "Moqi's local speech-to-text is built on transcribe.cpp and ggml. Thanks to the amazing work by Georgi Gerganov and contributors."
+          "details": "The inference engine that runs speech recognition on your Mac. Thanks to Georgi Gerganov and all contributors."
+        },
+        "handy": {
+          "title": "Handy",
+          "description": "Moqi is built on Handy. Thanks to CJ Pais and all contributors. MIT License.",
+          "showLicense": "License",
+          "hideLicense": "Hide",
+          "source": "Source"
+        },
+        "qwen": {
+          "title": "Qwen3-ASR",
+          "description": "Speech recognition model by the Qwen team."
         }
-      }
+      },
+      "tagline": "Chinese and English in one breath. Understood.",
+      "versionLabel": "Version {{version}}"
     }
   },
   "footer": {

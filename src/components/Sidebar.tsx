@@ -11,13 +11,13 @@ import {
 } from "lucide-react";
 // Yuyin fork: our logo instead of Handy's
 import YuyinLogo from "@/yuyin/YuyinLogo";
+import { YuyinAbout } from "@/yuyin/YuyinAbout";
 import { useSettings } from "../hooks/useSettings";
 import {
   GeneralSettings,
   AdvancedSettings,
   HistorySettings,
   DebugSettings,
-  AboutSettings,
   PostProcessingSettings,
   ModelsSettings,
   YuyinSettings,
@@ -97,7 +97,8 @@ export const SECTIONS_CONFIG = {
     labelKey: "sidebar.about",
     icon: Info,
     color: "#8e8e93",
-    component: AboutSettings,
+    // Yuyin fork: our About page (tagline, credits, Handy's license)
+    component: YuyinAbout,
     enabled: () => true,
   },
 } as const satisfies Record<string, SectionConfig>;

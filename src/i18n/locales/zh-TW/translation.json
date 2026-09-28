@@ -121,8 +121,13 @@
         "requestFailed": "請求權限失敗，請重試"
       },
       "welcome": "歡迎使用默契",
-      "intro": "按住右邊的 Option 鍵說話，放開，字就出現在游標上。開始之前，請允許兩件事。",
+      "intro": "按住右邊的 Option 鍵說話，放開，字就出現在游標上。\n開始之前，請允許兩件事。",
       "privacy": "聲音只在這台 Mac 上辨識，不會上傳。"
+    },
+    "ready": {
+      "title": "準備好了",
+      "slogan": "按住右邊的 Option 鍵，讓默契幫你打字。",
+      "start": "開始使用"
     }
   },
   "modelSelector": {
@@ -634,13 +639,26 @@
         "ggml": {
           "title": "ggml",
           "description": "針對 OpenAI Whisper 自動語音辨識模型的高效能推理引擎",
-          "details": "「默契」使用 ggml 進行快速的本機語音轉文字處理。感謝 Georgi Gerganov 和貢獻者們的傑出工作"
+          "details": "在 Mac 上跑語音辨識模型的推理引擎。感謝 Georgi Gerganov 和所有貢獻者。"
+        },
+        "handy": {
+          "title": "Handy",
+          "description": "默契是從 Handy 改出來的。感謝 CJ Pais 和所有貢獻者。MIT 授權。",
+          "showLicense": "授權條款",
+          "hideLicense": "收起",
+          "source": "原始碼"
+        },
+        "qwen": {
+          "title": "Qwen3-ASR",
+          "description": "語音辨識模型，由通義千問（Qwen）團隊開發。"
         }
       },
       "whatsNewUpdates": {
         "label": "顯示新功能",
         "description": "「默契」更新後顯示版本資訊"
-      }
+      },
+      "tagline": "中英夾雜，一聽就懂。",
+      "versionLabel": "版本 {{version}}"
     }
   },
   "footer": {
