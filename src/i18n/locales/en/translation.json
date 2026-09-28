@@ -1,7 +1,7 @@
 {
   "appName": "Moqi",
   "tray": {
-    "settings": "Settings...",
+    "settings": "Open Moqi…",
     "checkUpdates": "Check for Updates...",
     "copyLastTranscript": "Copy Last Result",
     "quit": "Quit",
@@ -530,8 +530,8 @@
       "onboardingPreview": {
         "title": "Preview Onboarding",
         "description": "Preview onboarding screens without changing permissions, models, or completion state",
-        "permissionsButton": "Permissions",
-        "modelsButton": "Model Selection",
+        "permissionsButton": "Step 1: Permissions & model",
+        "modelsButton": "Step 2: Raw or tidy",
         "exitButton": "Exit Preview"
       },
       "soundTheme": {

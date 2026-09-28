@@ -1,7 +1,7 @@
 {
   "appName": "默契",
   "tray": {
-    "settings": "設定...",
+    "settings": "打開默契…",
     "checkUpdates": "檢查更新...",
     "copyLastTranscript": "複製上一次",
     "quit": "結束",
@@ -623,8 +623,8 @@
       "onboardingPreview": {
         "title": "預覽新手引導",
         "description": "預覽新手引導畫面，而不變更權限、模型或完成狀態",
-        "permissionsButton": "權限",
-        "modelsButton": "模型選擇",
+        "permissionsButton": "第 1 步：權限與模型",
+        "modelsButton": "第 2 步：原話或整理",
         "exitButton": "結束預覽"
       }
     },

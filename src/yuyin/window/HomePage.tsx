@@ -8,7 +8,7 @@ import { useSettings } from "@/hooks/useSettings";
 import { yuyinApi, type YuyinStats } from "../api";
 import { Card, Kbd } from "./ui";
 import { LockIcon } from "./icons";
-import { durationParts, formatCount, keyLabel } from "./format";
+import { durationParts, formatCount, keyLabel, tapKeyLabel } from "./format";
 
 /** api.deepseek.com → DeepSeek; other hosts as they are. */
 export const serviceName = (host: string) =>
@@ -177,11 +177,9 @@ export const HomePage: React.FC<{
     };
   }, [load]);
 
-  const talkKey = keyLabel(
-    settings?.bindings?.transcribe?.current_binding,
-    os,
-    t,
-  );
+  const binding = settings?.bindings?.transcribe?.current_binding;
+  const talkKey = keyLabel(binding, os, t);
+  const tapKey = tapKeyLabel(binding, os, t);
   const lang = i18n.language;
   const s = stats;
 
@@ -279,8 +277,8 @@ export const HomePage: React.FC<{
                 {t("moqi.home.handsFree")}
               </span>
               <span className="flex gap-[3px]">
-                <Kbd>{os === "macos" ? "⌥" : "Alt"}</Kbd>
-                <Kbd>{os === "macos" ? "⌥" : "Alt"}</Kbd>
+                <Kbd>{tapKey}</Kbd>
+                <Kbd>{tapKey}</Kbd>
               </span>
             </div>
             <div className="flex items-center justify-between gap-2">

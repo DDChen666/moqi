@@ -50,6 +50,18 @@ export const keyLabel = (
   return formatKeyCombination(binding, os);
 };
 
+/** The shortcut as a single key cap, for "tap twice": ⌥ rather than 右 ⌥ Option. */
+export const tapKeyLabel = (
+  binding: string | undefined,
+  os: OSType,
+  t: TFunction,
+): string => {
+  if (binding === "option_right" || binding === "alt_right") {
+    return os === "macos" ? "⌥" : "Alt";
+  }
+  return keyLabel(binding, os, t);
+};
+
 const startOfDay = (d: Date) =>
   new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 

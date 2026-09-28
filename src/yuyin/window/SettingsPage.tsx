@@ -23,6 +23,7 @@ import {
   TextInput,
 } from "./ui";
 import { BackIcon, ChevronIcon } from "./icons";
+import { tapKeyLabel } from "./format";
 
 const DEEPSEEK = {
   base_url: "https://api.deepseek.com",
@@ -208,6 +209,11 @@ export const SettingsPage: React.FC = () => {
   const level: Level = localOnly ? "raw" : (config?.level ?? "tidy");
   const language =
     getSupportedLanguage(settings?.app_language) || i18n.language;
+  const tapKey = tapKeyLabel(
+    settings?.bindings?.transcribe?.current_binding,
+    os,
+    t,
+  );
 
   return (
     <div className="flex flex-col gap-[18px] max-w-[600px]">
@@ -226,8 +232,8 @@ export const SettingsPage: React.FC = () => {
           description={t("moqi.settings.handsFreeHint")}
         >
           <span className="flex gap-[3px]">
-            <Kbd>{os === "macos" ? "⌥" : "Alt"}</Kbd>
-            <Kbd>{os === "macos" ? "⌥" : "Alt"}</Kbd>
+            <Kbd>{tapKey}</Kbd>
+            <Kbd>{tapKey}</Kbd>
           </span>
         </Row>
         <Row label={t("moqi.settings.cancelRecording")}>
