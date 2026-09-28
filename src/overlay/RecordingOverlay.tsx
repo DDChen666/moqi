@@ -11,15 +11,11 @@ import type {
 } from "@/bindings";
 import i18n, { syncLanguageFromSettings } from "@/i18n";
 import { getLanguageDirection } from "@/lib/utils/rtl";
+// Yuyin fork: our capsule replaces the compact pill (see src/yuyin/Capsule.tsx).
+import { Capsule, type CapsuleState } from "@/yuyin/Capsule";
 
-// Yuyin fork: "copied" = the focused window changed, so the text was copied
-// instead of pasted.
-type OverlayState =
-  | "recording"
-  | "streaming"
-  | "transcribing"
-  | "processing"
-  | "copied";
+// Yuyin fork: "done" / "fallback" / "copied" end a dictation in the capsule.
+type OverlayState = "streaming" | CapsuleState;
 
 // Number of reactive bars in the waveform (the simple, smoothed style shared by
 // every overlay form). Mic levels arrive as 16 FFT buckets; we take the first N.
@@ -67,7 +63,7 @@ const RecordingOverlay: React.FC = () => {
         // recording-ready while the awaits below are in flight; resetting after
         // them would overwrite that event and leave the overlay stuck arming.
         if (overlayState === "recording" || overlayState === "streaming") {
-          setElapsed(0); // Yuyin fork: the compact pill shows the timer too
+          setElapsed(0); // Yuyin fork: the capsule shows a timer too
           setCaptureReady(false);
           smoothedLevelsRef.current = Array(16).fill(0);
           setLevels(Array(WAVE_BARS).fill(0));
@@ -143,7 +139,7 @@ const RecordingOverlay: React.FC = () => {
   }, []);
 
   // Elapsed capture timer starts only once microphone samples are flowing.
-  // Yuyin fork: also runs for the compact pill (criterion 11).
+  // Yuyin fork: also for the capsule's recording state (criterion 11).
   useEffect(() => {
     if (state !== "streaming" && state !== "recording") return;
     if (!isVisible || !captureReady) return;
@@ -166,6 +162,20 @@ const RecordingOverlay: React.FC = () => {
     pinnedRef.current = true;
     setOverflowing(false);
   }, [session]);
+
+  // Yuyin fork: everything except Live streaming uses our capsule. It stays
+  // mounted while hidden so it can animate out.
+  if (state !== "streaming") {
+    return (
+      <Capsule
+        state={state}
+        visible={isVisible}
+        captureReady={captureReady}
+        elapsed={elapsed}
+        direction={direction}
+      />
+    );
+  }
 
   if (!isVisible) return null;
 
@@ -292,24 +302,6 @@ const RecordingOverlay: React.FC = () => {
   // ---- Minimal overlay: exactly one row at a time — waveform (recording), or a
   // spinner + label (transcribing / processing). Never both. The pill animates its
   // width between them; the cancel button is in both rows so it stays put.
-  // Yuyin fork: brief notice that the text was copied, not pasted.
-  if (state === "copied") {
-    return (
-      <div
-        dir={direction}
-        className={`ov-stage ${position} ov-fade ${isVisible ? "show" : ""}`}
-      >
-        <div className="scard compact cworking">
-          <div className="sbase">
-            <div className="sbase-l" />
-            <span className="swork-label">{t("overlay.copied")}</span>
-            <div className="sbase-r" />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   const working = state === "transcribing" || state === "processing";
   const workLabel =
     state === "processing"
@@ -324,10 +316,7 @@ const RecordingOverlay: React.FC = () => {
       <div
         className={`scard compact ${working && isVisible ? "cworking" : ""}`}
       >
-        {/* Yuyin fork: show the timer once a recording passes 10 s */}
-        {working
-          ? workingRow(workLabel, true)
-          : listeningRow(elapsed >= 10, true)}
+        {working ? workingRow(workLabel, true) : listeningRow(false, true)}
       </div>
     </div>
   );

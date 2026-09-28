@@ -16,10 +16,10 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use log::{debug, warn};
 use once_cell::sync::Lazy;
 use serde::Serialize;
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager};
 
 use super::config::Level;
-use super::context::{classify, Context, FrontApp};
+use super::context::{classify, display_name, Context, FrontApp};
 
 const TIMINGS_FILE: &str = "yuyin_timings.jsonl";
 
@@ -73,14 +73,26 @@ fn with_session(f: impl FnOnce(&mut Session)) {
     }
 }
 
+/// Shown briefly in the capsule on key press.
+#[derive(Clone, Serialize)]
+struct ContextEvent {
+    context: Context,
+    app: String,
+}
+
 /// Key press (at `pressed`): remember where the user is typing.
-pub fn begin(pressed: Instant) {
+pub fn begin(app: &AppHandle, pressed: Instant) {
     GENERATION.fetch_add(1, Ordering::SeqCst);
     let (front, window) = match platform::frontmost() {
         Some((app, window)) => (Some(app), window),
         None => (None, None),
     };
     let context = front.as_ref().map(classify).unwrap_or(Context::Other);
+    let event = ContextEvent {
+        context,
+        app: front.as_ref().map(display_name).unwrap_or_default(),
+    };
+    let _ = app.emit_to("recording_overlay", "yuyin-context", event);
     debug!(
         "yuyin session: context={:?} app={:?} window_known={}",
         context,
@@ -199,12 +211,12 @@ fn between(a: Option<Instant>, b: Option<Instant>) -> Option<u128> {
     }
 }
 
-/// Text was pasted (or copied): write the timing record and clear the session.
-pub fn finish(app: &AppHandle) {
+/// Text was pasted (or copied): write the timing record, clear the session
+/// and return what happened to the clean-up step.
+pub fn finish(app: &AppHandle) -> Option<PolishOutcome> {
     let output = Instant::now();
-    let Some(s) = CURRENT.lock().ok().and_then(|mut g| g.take()) else {
-        return;
-    };
+    let s = CURRENT.lock().ok().and_then(|mut g| g.take())?;
+    let outcome = s.polish;
     let record = TimingRecord {
         at: SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -223,11 +235,10 @@ pub fn finish(app: &AppHandle) {
         chars_out: s.chars_out,
     };
     let Ok(dir) = app.path().app_data_dir() else {
-        return;
+        return Some(outcome);
     };
-    let line = match serde_json::to_string(&record) {
-        Ok(line) => line,
-        Err(_) => return,
+    let Ok(line) = serde_json::to_string(&record) else {
+        return Some(outcome);
     };
     let result = std::fs::OpenOptions::new()
         .create(true)
@@ -237,6 +248,7 @@ pub fn finish(app: &AppHandle) {
     if let Err(e) = result {
         warn!("Failed to write yuyin timing record: {e}");
     }
+    Some(outcome)
 }
 
 #[cfg(target_os = "macos")]
@@ -365,11 +377,16 @@ mod platform {
             .unwrap_or_default();
         let window = focused_window(pid);
         let window_title = window.as_ref().map(window_title).unwrap_or_default();
+        let name = app
+            .localizedName()
+            .map(|s| s.to_string())
+            .unwrap_or_default();
         Some((
             FrontApp {
                 bundle_id,
                 pid,
                 window_title,
+                name,
             },
             window,
         ))

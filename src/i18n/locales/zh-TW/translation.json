@@ -701,7 +701,11 @@
   "overlay": {
     "transcribing": "正在轉錄...",
     "processing": "處理中...",
-    "copied": "已複製，請自己貼上"
+    "copied": "已複製，請自己貼上",
+    "yuyin": {
+      "polishing": "整理中",
+      "fallback": "潤稿沒有完成，已貼上原文"
+    }
   },
   "whatsNew": {
     "title": "Handy v{{version}} 新功能"

@@ -614,7 +614,7 @@ impl ShortcutAction for TranscribeAction {
         if recording_error.is_none() {
             // Yuyin fork: after capture has started (so it adds no latency),
             // remember where the user is typing and open the LLM connection.
-            crate::yuyin::session::begin(start_time);
+            crate::yuyin::session::begin(app, start_time);
             crate::yuyin::polish::warm_up(app);
 
             // Dynamically register the cancel shortcut in a separate task to avoid deadlock
@@ -886,7 +886,8 @@ impl ShortcutAction for TranscribeAction {
                                     } else {
                                         utils::paste(final_text, ah_clone.clone())
                                     };
-                                    crate::yuyin::session::finish(&ah_clone);
+                                    let outcome = crate::yuyin::session::finish(&ah_clone);
+                                    let pasted = result.is_ok() && !copy_only;
                                     match result {
                                         Ok(()) => debug!(
                                             "Text output successfully in {:?}",
@@ -897,7 +898,9 @@ impl ShortcutAction for TranscribeAction {
                                             let _ = ah_clone.emit("paste-error", ());
                                         }
                                     }
-                                    if !copy_only {
+                                    if pasted {
+                                        crate::yuyin::output::show_result(&ah_clone, outcome);
+                                    } else if !copy_only {
                                         utils::hide_recording_overlay(&ah_clone);
                                     }
                                     set_tray_state(&ah_clone, TrayIconState::Idle);

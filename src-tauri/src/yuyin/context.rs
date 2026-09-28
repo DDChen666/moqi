@@ -24,6 +24,8 @@ pub struct FrontApp {
     pub bundle_id: String,
     pub pid: i32,
     pub window_title: String,
+    /// The app's name as the user sees it (e.g. "LINE", "終端機").
+    pub name: String,
 }
 
 const CHAT_APPS: &[&str] = &[
@@ -62,17 +64,37 @@ const BROWSERS: &[&str] = &[
 
 /// Web apps are identified by the tab title that browsers put in the window
 /// title. Checked in order; the first match wins.
-const WEB_TITLES: &[(&str, Context)] = &[
-    ("messenger", Context::Chat),
-    ("facebook", Context::Chat),
-    ("line", Context::Chat),
-    ("google keep", Context::Notes),
-    ("keep", Context::Notes),
-    ("chatgpt", Context::ToAi),
-    ("claude", Context::ToAi),
-    ("gemini", Context::ToAi),
-    ("deepseek", Context::ToAi),
+const WEB_TITLES: &[(&str, Context, &str)] = &[
+    ("messenger", Context::Chat, "Messenger"),
+    ("facebook", Context::Chat, "Facebook"),
+    ("line", Context::Chat, "LINE"),
+    ("google keep", Context::Notes, "Keep"),
+    ("keep", Context::Notes, "Keep"),
+    ("chatgpt", Context::ToAi, "ChatGPT"),
+    ("claude", Context::ToAi, "Claude"),
+    ("gemini", Context::ToAi, "Gemini"),
+    ("deepseek", Context::ToAi, "DeepSeek"),
 ];
+
+fn web_app(app: &FrontApp) -> Option<(Context, &'static str)> {
+    if !BROWSERS.contains(&app.bundle_id.as_str()) {
+        return None;
+    }
+    let title = app.window_title.to_lowercase();
+    WEB_TITLES
+        .iter()
+        .find(|(needle, _, _)| contains_word(&title, needle))
+        .map(|(_, context, name)| (*context, *name))
+}
+
+/// What the capsule shows for a moment on key press: the web app inside a
+/// browser ("Keep"), otherwise the app's own name ("LINE").
+pub fn display_name(app: &FrontApp) -> String {
+    match web_app(app) {
+        Some((_, name)) => name.to_string(),
+        None => app.name.clone(),
+    }
+}
 
 pub fn classify(app: &FrontApp) -> Context {
     let id = app.bundle_id.as_str();
@@ -85,15 +107,9 @@ pub fn classify(app: &FrontApp) -> Context {
     if NOTES_APPS.contains(&id) {
         return Context::Notes;
     }
-    if BROWSERS.contains(&id) {
-        let title = app.window_title.to_lowercase();
-        for (needle, context) in WEB_TITLES {
-            if contains_word(&title, needle) {
-                return *context;
-            }
-        }
-    }
-    Context::Other
+    web_app(app)
+        .map(|(context, _)| context)
+        .unwrap_or(Context::Other)
 }
 
 /// `needle` appears in `haystack` as a whole word, so "line" matches
@@ -115,7 +131,17 @@ mod tests {
             bundle_id: bundle_id.into(),
             pid: 1,
             window_title: title.into(),
+            name: "App".into(),
         }
+    }
+
+    #[test]
+    fn display_names() {
+        assert_eq!(
+            display_name(&app("com.google.Chrome", "Google Keep - Google Chrome")),
+            "Keep"
+        );
+        assert_eq!(display_name(&app("jp.naver.line.mac", "")), "App");
     }
 
     #[test]

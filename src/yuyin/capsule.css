@@ -1,0 +1,286 @@
+/* Yuyin fork: the recording capsule (design: 設計文件/介面/Yuyin_介面提案_v2.html).
+   Black glass, hairline white waveform, one red dot. Color appears only at
+   moments of change: the rim while speaking, the glide while the LLM tidies,
+   the check mark when text lands. */
+
+:root {
+  --yy-spring: cubic-bezier(0.22, 1, 0.36, 1);
+  --yy-soft: cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.yy-stage {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.yy-cap {
+  --level: 0;
+  --angle: 0deg;
+  position: relative;
+  height: 36px;
+  border-radius: 18px;
+  color: #f5f5f7;
+  font:
+    500 12.5px -apple-system,
+    BlinkMacSystemFont,
+    "SF Pro Text",
+    "PingFang TC",
+    sans-serif;
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+  transform: scale(0.5);
+  opacity: 0;
+  filter: blur(6px);
+  transition:
+    transform 0.55s var(--yy-spring),
+    opacity 0.3s var(--yy-soft),
+    filter 0.4s var(--yy-soft),
+    width 0.55s var(--yy-spring);
+}
+.yy-cap.show {
+  transform: scale(1);
+  opacity: 1;
+  filter: blur(0);
+}
+/* The window hides 300 ms after "hide-overlay", so leaving must finish first. */
+.yy-cap.leave {
+  transform: translateY(5px) scale(0.92);
+  opacity: 0;
+  filter: blur(3px);
+  transition:
+    transform 0.26s var(--yy-soft),
+    opacity 0.22s ease-out,
+    filter 0.22s;
+}
+
+.yy-shell {
+  position: relative;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(
+    180deg,
+    rgba(38, 38, 40, 0.95),
+    rgba(10, 10, 11, 0.97)
+  );
+  box-shadow:
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 10px 24px rgba(0, 0, 0, 0.4),
+    0 2px 6px rgba(0, 0, 0, 0.28);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 0 14px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* Iridescent rim, brighter with the voice. Light, never paint. */
+.yy-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  pointer-events: none;
+  background: conic-gradient(
+    from var(--angle),
+    #9ab8ff,
+    #c5a8ff,
+    #ffb0d0,
+    #ffd2a0,
+    #9ab8ff
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.5s;
+}
+.yy-cap.recording .yy-shell::before {
+  opacity: calc(0.06 + var(--level) * 0.5);
+  transition: opacity 0.12s linear;
+}
+
+.yy-rec {
+  position: relative;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ff453a;
+  flex: none;
+}
+.yy-rec::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: #ff453a;
+  animation: yy-breathe 1.8s ease-in-out infinite;
+}
+@keyframes yy-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.45;
+  }
+  50% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+.yy-cap:not(.ready) .yy-rec {
+  background: #8e8e93;
+}
+.yy-cap:not(.ready) .yy-rec::after {
+  animation: none;
+  opacity: 0;
+}
+
+.yy-wave {
+  display: flex;
+  align-items: center;
+  gap: 2.5px;
+  height: 20px;
+  flex: none;
+}
+.yy-wave i {
+  display: block;
+  width: 2px;
+  height: 2px;
+  border-radius: 1px;
+  background: rgba(245, 245, 247, 0.35);
+  transition: background 0.4s;
+}
+.yy-cap.voiced .yy-wave i {
+  background: rgba(245, 245, 247, 0.95);
+}
+
+.yy-ctx {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #8e8e93;
+  animation: yy-fade 0.5s 0.1s both;
+}
+.yy-ctx svg {
+  width: 13px;
+  height: 13px;
+}
+.yy-timer {
+  color: #8e8e93;
+  font-variant-numeric: tabular-nums;
+  animation: yy-fade 0.5s both;
+}
+@keyframes yy-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Working: the waveform collapses into a line with a light gliding along it. */
+.yy-line {
+  position: relative;
+  width: 76px;
+  height: 2px;
+  border-radius: 1px;
+  background: rgba(245, 245, 247, 0.16);
+  overflow: hidden;
+  flex: none;
+}
+.yy-line::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 40%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.95),
+    transparent
+  );
+  transform: translateX(-100%);
+  animation: yy-glide 1.3s cubic-bezier(0.45, 0, 0.3, 1) infinite;
+}
+.yy-cap.polishing .yy-line::after {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    #a9c0ff 30%,
+    #d4b8ff 50%,
+    #ffbcd6 70%,
+    transparent
+  );
+}
+@keyframes yy-glide {
+  70%,
+  100% {
+    transform: translateX(260%);
+  }
+}
+.yy-status {
+  color: #a1a1a6;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  animation: yy-fade 0.4s both;
+}
+.yy-cap.copied .yy-status,
+.yy-cap.fallback .yy-status {
+  color: #d1d1d6;
+}
+.yy-status svg {
+  width: 14px;
+  height: 14px;
+}
+.yy-amber {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ff9f0a;
+  flex: none;
+}
+
+.yy-cap.done .yy-shell {
+  padding: 0 10px;
+}
+.yy-check {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+.yy-check path {
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 18;
+  stroke-dashoffset: 18;
+  animation: yy-draw 0.4s 0.05s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+@keyframes yy-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yy-cap,
+  .yy-cap *,
+  .yy-cap *::before,
+  .yy-cap *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .yy-shell::before {
+    display: none;
+  }
+}
