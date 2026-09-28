@@ -651,14 +651,19 @@ fn handle_frame(
 
     if let Some(cfg) = vad {
         let mut detector = cfg.detector.lock().unwrap();
-        match detector
+        let kept = match detector
             .push_frame(samples)
             .unwrap_or(VadFrame::Speech(samples))
         {
-            VadFrame::Speech(buf) => emit(buf),
-            // Yuyin fork: pauses let the chunker transcribe while the user speaks.
-            VadFrame::Noise => crate::yuyin::chunker::on_silence(samples.len()),
-        }
+            VadFrame::Speech(buf) => {
+                emit(buf);
+                true
+            }
+            VadFrame::Noise => false,
+        };
+        // Yuyin fork: pauses let the chunker transcribe while the user speaks.
+        let voiced = detector.last_frame_voiced().unwrap_or(kept);
+        crate::yuyin::chunker::on_vad(voiced, samples.len());
     } else {
         emit(samples);
     }

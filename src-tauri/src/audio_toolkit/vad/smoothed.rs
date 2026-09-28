@@ -123,6 +123,11 @@ impl VoiceActivityDetector for SmoothedVad {
         self.inner_vad.frame_samples()
     }
 
+    // Yuyin fork: see the trait.
+    fn last_frame_voiced(&self) -> Option<bool> {
+        self.frame_buffer.back().map(|f| f.voiced)
+    }
+
     fn set_hangover_frames(&mut self, frames: usize) {
         self.hangover_frames = frames;
     }

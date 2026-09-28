@@ -52,6 +52,13 @@ pub trait VoiceActivityDetector: Send + Sync {
         None
     }
 
+    /// Yuyin fork: whether the last frame pushed was voiced before any
+    /// smoothing. The hangover keeps short pauses as speech; the chunker
+    /// needs to see them. None for detectors without smoothing.
+    fn last_frame_voiced(&self) -> Option<bool> {
+        None
+    }
+
     fn reset(&mut self) {}
 }
 

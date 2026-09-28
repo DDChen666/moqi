@@ -6,9 +6,13 @@
 //! pause after enough speech, the speech so far is transcribed on a
 //! background thread. On release only the tail after the last pause is left.
 //!
-//! - Pieces end in silence, so no word is cut in half: at least 0.75 s (the
-//!   VAD's 450 ms hangover plus [`PAUSE_SAMPLES`]), or any gap the VAD drops
-//!   once a piece is past [`LONG_PIECE_SAMPLES`].
+//! - Pieces end in silence, so no word is cut in half. Pauses are found in
+//!   the VAD's frame-by-frame decision, before its 450 ms hangover.
+//! - A piece ends at the next pause between sentences (0.75 s). Past 8 s it
+//!   ends at the next breath (0.25 s) instead, so the last piece, the one
+//!   release waits for, stays short. Cutting at every breath was faster
+//!   still, but split clauses and cost words ("人類社會" → "人類周圍");
+//!   see `M0_引擎盲測/results/chunk_v4*` (`tools/chunk_eval.py`).
 //! - The recorder still hands back the whole recording on release, for
 //!   history and the WAV file. We only use it to find the tail.
 //! - Anything unexpected (a piece failed, the lengths disagree, a piece takes
@@ -27,16 +31,39 @@ use tauri::{AppHandle, Manager};
 use crate::managers::transcription::TranscriptionManager;
 
 const SAMPLE_RATE: usize = 16_000;
-/// Non-speech after the VAD hangover before a gap counts as a pause.
-const PAUSE_SAMPLES: usize = SAMPLE_RATE * 300 / 1000;
-/// Shorter pieces lose too much context for the model; wait for more speech.
-const MIN_PIECE_SAMPLES: usize = SAMPLE_RATE * 4;
-/// Past this, any gap the VAD drops (≥ 450 ms) will do: people who speak
-/// without clear pauses would otherwise leave everything to the release.
-const LONG_PIECE_SAMPLES: usize = SAMPLE_RATE * 10;
 /// A tail this short holds no word (the VAD adds 450 ms of pre-roll to any
 /// speech), only the resampler flush at release.
 const MIN_TAIL_SAMPLES: usize = SAMPLE_RATE / 5;
+
+/// When to cut a piece, in samples. `tools/chunk_eval.py` tries other values
+/// through `YUYIN_CHUNK_*_MS` environment variables, without a rebuild.
+struct Tuning {
+    /// Unvoiced audio that counts as a pause.
+    pause: usize,
+    /// Shorter pieces lose too much context for the model; wait for more.
+    min_piece: usize,
+    /// Past this, a breath will do: people who speak without long pauses
+    /// would otherwise leave everything to the release.
+    long_piece: usize,
+    long_pause: usize,
+}
+
+static TUNING: Lazy<Tuning> = Lazy::new(|| {
+    let ms = |name: &str, default: usize| {
+        std::env::var(name)
+            .ok()
+            .and_then(|v| v.parse::<usize>().ok())
+            .unwrap_or(default)
+            * SAMPLE_RATE
+            / 1000
+    };
+    Tuning {
+        pause: ms("YUYIN_CHUNK_PAUSE_MS", 750),
+        min_piece: ms("YUYIN_CHUNK_MIN_PIECE_MS", 4_000),
+        long_piece: ms("YUYIN_CHUNK_LONG_PIECE_MS", 8_000),
+        long_pause: ms("YUYIN_CHUNK_LONG_PAUSE_MS", 250),
+    }
+});
 /// How long release waits for background pieces before transcribing the
 /// whole recording instead.
 const WAIT_LIMIT: Duration = Duration::from_secs(20);
@@ -52,10 +79,15 @@ struct State {
     samples: Vec<f32>,
     /// `samples[..committed]` has been handed to the background thread.
     committed: usize,
-    /// Non-speech samples since the last speech frame.
-    silence: usize,
+    /// Unvoiced samples since the last voiced frame.
+    quiet: usize,
+    /// A voiced frame came after the last cut: the tail holds speech, and
+    /// the next pause may cut again.
+    voiced_since_cut: bool,
     /// One slot per piece, filled in by the background thread.
     pieces: Vec<Option<std::result::Result<String, String>>>,
+    /// How long each piece took, for the replay check.
+    piece_ms: Vec<Option<u128>>,
 }
 
 static STATE: Lazy<Mutex<State>> = Lazy::new(|| Mutex::new(State::default()));
@@ -100,10 +132,14 @@ fn run_worker(app: AppHandle, rx: mpsc::Receiver<Job>) {
             seconds,
             started.elapsed()
         );
+        let elapsed = started.elapsed().as_millis();
         if let Ok(mut s) = STATE.lock() {
             if s.generation == job.generation {
                 if let Some(slot) = s.pieces.get_mut(job.index) {
                     *slot = Some(result);
+                }
+                if let Some(slot) = s.piece_ms.get_mut(job.index) {
+                    *slot = Some(elapsed);
                 }
             }
         }
@@ -128,40 +164,44 @@ pub fn begin(app: &AppHandle, enabled: bool) {
     }
 }
 
-/// Speech frames, as kept by the recorder (audio thread: keep it cheap).
+/// Audio the recorder keeps (audio thread: keep it cheap).
 pub fn on_speech(frame: &[f32]) {
     let Ok(mut s) = STATE.lock() else { return };
     if !s.active {
         return;
     }
-    s.silence = 0;
     s.samples.extend_from_slice(frame);
 }
 
-/// Frames the VAD dropped as silence (audio thread: keep it cheap).
-pub fn on_silence(len: usize) {
+/// Every frame's VAD decision before smoothing, after the recorder has kept
+/// or dropped it (audio thread: keep it cheap).
+pub fn on_vad(voiced: bool, len: usize) {
     let job = {
         let Ok(mut s) = STATE.lock() else { return };
         if !s.active {
             return;
         }
-        let before = s.silence;
-        s.silence += len;
-        let pending = s.samples.len() - s.committed;
-        if pending < MIN_PIECE_SAMPLES {
+        if voiced {
+            s.quiet = 0;
+            s.voiced_since_cut = true;
             return;
         }
-        let needed = if pending >= LONG_PIECE_SAMPLES {
-            1
+        s.quiet += len;
+        let pending = s.samples.len() - s.committed;
+        let t = &*TUNING;
+        let needed = if pending >= t.long_piece {
+            t.long_pause
         } else {
-            PAUSE_SAMPLES
+            t.pause
         };
-        if !(before < needed && s.silence >= needed) {
+        if !s.voiced_since_cut || pending < t.min_piece || s.quiet < needed {
             return;
         }
         let (start, end) = (s.committed, s.samples.len());
         s.committed = end;
+        s.voiced_since_cut = false;
         s.pieces.push(None);
+        s.piece_ms.push(None);
         Job {
             generation: s.generation,
             index: s.pieces.len() - 1,
@@ -215,7 +255,7 @@ pub fn transcribe(tm: &TranscriptionManager, samples: Vec<f32>) -> (Result<Strin
         )
     };
 
-    let (generation, committed, count) = {
+    let (generation, committed, count, tail_has_voice) = {
         let Ok(mut s) = STATE.lock() else {
             return whole(samples);
         };
@@ -231,7 +271,12 @@ pub fn transcribe(tm: &TranscriptionManager, samples: Vec<f32>) -> (Result<Strin
             );
             return whole(samples);
         }
-        (s.generation, s.committed, s.pieces.len())
+        (
+            s.generation,
+            s.committed,
+            s.pieces.len(),
+            s.voiced_since_cut,
+        )
     };
 
     let texts = match wait_for_pieces(generation) {
@@ -240,7 +285,9 @@ pub fn transcribe(tm: &TranscriptionManager, samples: Vec<f32>) -> (Result<Strin
     };
 
     let tail = &samples[committed..];
-    let tail_text = if tail.len() >= MIN_TAIL_SAMPLES {
+    // A pause just before release leaves only silence after the last cut;
+    // the model would make up a word ("嗯。") for it.
+    let tail_text = if tail_has_voice && tail.len() >= MIN_TAIL_SAMPLES {
         match tm.transcribe(tail.to_vec()) {
             Ok(text) => text,
             Err(e) => {
@@ -264,6 +311,16 @@ pub fn transcribe(tm: &TranscriptionManager, samples: Vec<f32>) -> (Result<Strin
     let mut parts = texts;
     parts.push(tail_text);
     (Ok(join(&parts)), stats)
+}
+
+/// Pieces cut so far in this recording (the replay check).
+pub fn piece_count() -> usize {
+    STATE.lock().map(|s| s.pieces.len()).unwrap_or(0)
+}
+
+/// How long each piece took to transcribe, once done (the replay check).
+pub fn piece_times_ms() -> Vec<Option<u128>> {
+    STATE.lock().map(|s| s.piece_ms.clone()).unwrap_or_default()
 }
 
 /// Block until every piece handed to the background thread is done (or
@@ -382,14 +439,30 @@ mod tests {
     }
 
     /// Feed the hooks the way the recorder does and check where pieces are
-    /// cut. Uses the shared state, so everything runs in one test.
+    /// cut, with the default tuning. Uses the shared state, so everything
+    /// runs in one test.
     #[test]
     fn cuts_only_at_pauses_after_enough_speech() {
-        let speech = vec![0.1f32; SAMPLE_RATE]; // 1 s
         let frame = 480; // Silero: 30 ms
+        let second = vec![0.1f32; SAMPLE_RATE];
+        let speak = |seconds: usize| {
+            for _ in 0..seconds {
+                on_speech(&second);
+                on_vad(true, frame);
+            }
+        };
+        // Unvoiced frames the recorder dropped.
         let pause = |ms: usize| {
             for _ in 0..(SAMPLE_RATE * ms / 1000 / frame) {
-                on_silence(frame);
+                on_vad(false, frame);
+            }
+        };
+        let quiet_frame = vec![0.0f32; frame];
+        // Unvoiced frames the VAD hangover still kept.
+        let hangover = |ms: usize| {
+            for _ in 0..(SAMPLE_RATE * ms / 1000 / frame) {
+                on_speech(&quiet_frame);
+                on_vad(false, frame);
             }
         };
         let reset = || {
@@ -404,42 +477,50 @@ mod tests {
 
         // 2 s of speech, then a long pause: too short to cut.
         reset();
-        on_speech(&speech);
-        on_speech(&speech);
+        speak(2);
         pause(600);
         assert_eq!(STATE.lock().unwrap().pieces.len(), 0);
 
-        // 3 more seconds (5 s total), then a short gap: still one piece of speech.
-        on_speech(&speech);
-        on_speech(&speech);
-        on_speech(&speech);
-        pause(150);
+        // 3 more seconds (5 s total), then a breath: still one piece of speech.
+        speak(3);
+        pause(300);
         assert_eq!(STATE.lock().unwrap().pieces.len(), 0);
 
-        // A real pause cuts all 5 s, once.
-        pause(600);
+        // The gap goes on into a pause between sentences: all 5 s are cut, once.
+        pause(480);
         {
             let st = STATE.lock().unwrap();
             assert_eq!(st.pieces.len(), 1);
             assert_eq!(st.committed, 5 * SAMPLE_RATE);
+            assert!(!st.voiced_since_cut, "the tail after it is silence");
         }
         pause(2000);
         assert_eq!(STATE.lock().unwrap().pieces.len(), 1);
 
-        // Past 10 s, a single dropped frame is enough.
-        for _ in 0..11 {
-            on_speech(&speech);
-        }
-        on_silence(frame);
+        // Past 8 s, a breath will do; a shorter gap still won't.
+        speak(9);
+        pause(150);
+        assert_eq!(STATE.lock().unwrap().pieces.len(), 1);
+        pause(150);
         {
             let st = STATE.lock().unwrap();
             assert_eq!(st.pieces.len(), 2);
-            assert_eq!(st.committed, 16 * SAMPLE_RATE);
+            assert_eq!(st.committed, 14 * SAMPLE_RATE);
+        }
+
+        // A breath the hangover keeps as speech still counts: the cut lands
+        // on the ninth quiet frame (270 ms).
+        speak(9);
+        hangover(400);
+        {
+            let st = STATE.lock().unwrap();
+            assert_eq!(st.pieces.len(), 3);
+            assert_eq!(st.committed, 23 * SAMPLE_RATE + 9 * frame);
         }
 
         // After abandon, frames are ignored.
         abandon();
-        on_speech(&speech);
+        on_speech(&second);
         assert!(STATE.lock().unwrap().samples.is_empty());
     }
 }
