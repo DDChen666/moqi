@@ -31,7 +31,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Instant;
 use tauri::image::Image;
-use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
+use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::TrayIcon;
 use tauri::{AppHandle, Manager, Theme};
 use tauri_plugin_clipboard_manager::ClipboardExt;
@@ -509,6 +509,14 @@ fn build_menu(app: &AppHandle, inputs: &MenuInputs) -> tauri::Result<(Menu<tauri
         true,
         None::<&str>,
     )?;
+    // Yuyin fork: one click to paste the last result again (criterion 4).
+    let paste_last_transcript_i = MenuItem::with_id(
+        app,
+        "paste_last_transcript",
+        &strings.paste_last_transcript,
+        true,
+        None::<&str>,
+    )?;
     let quit_i = MenuItem::with_id(app, "quit", &strings.quit, true, quit_accelerator)?;
     let separator = || PredefinedMenuItem::separator(app);
 
@@ -530,39 +538,20 @@ fn build_menu(app: &AppHandle, inputs: &MenuInputs) -> tauri::Result<(Menu<tauri
             ],
         )?
     } else {
-        // Build model submenu — label is the active model name
-        let submenu_label = inputs
-            .downloaded_models
-            .iter()
-            .find(|(id, _)| *id == inputs.selected_model)
-            .map(|(_, name)| name.clone())
-            .unwrap_or_else(|| strings.model.clone());
-
-        let model_submenu = Submenu::with_id(app, "model_submenu", &submenu_label, true)?;
-        for (id, name) in &inputs.downloaded_models {
-            let is_active = *id == inputs.selected_model;
-            let item_id = format!("model_select:{}", id);
-            let item = CheckMenuItem::with_id(app, &item_id, name, true, is_active, None::<&str>)?;
-            model_submenu.append(&item)?;
-        }
-
-        let unload_model_i = MenuItem::with_id(
-            app,
-            "unload_model",
-            &strings.unload_model,
+        // Yuyin fork: no model submenu or unload item — Moqi ships one model,
+        // kept loaded (criterion 2).
+        let _ = (
+            &inputs.downloaded_models,
+            &inputs.selected_model,
             inputs.model_loaded,
-            None::<&str>,
-        )?;
-
+        );
         Menu::with_items(
             app,
             &[
                 &version_i,
                 &separator()?,
+                &paste_last_transcript_i,
                 &copy_last_transcript_i,
-                &separator()?,
-                &model_submenu,
-                &unload_model_i,
                 &separator()?,
                 &settings_i,
                 &check_updates_i,
@@ -632,6 +621,30 @@ pub fn recreate_tray_icon(app: &AppHandle) {
     info!("Recreating tray icon on relaunch");
     if let Err(e) = tray.set_visible(false).and_then(|_| tray.set_visible(true)) {
         error!("Failed to recreate tray icon: {}", e);
+    }
+}
+
+/// Yuyin fork: paste the last result into whatever has focus now. Clicking a
+/// menu bar item leaves the frontmost app in front, so it lands where the
+/// user is typing.
+pub fn paste_last_transcript(app: &AppHandle) {
+    let history_manager = app.state::<Arc<HistoryManager>>();
+    let text = match history_manager.get_latest_completed_entry() {
+        Ok(Some(entry)) => last_transcript_text(&entry).to_string(),
+        Ok(None) => return,
+        Err(err) => {
+            error!(
+                "Failed to fetch last completed transcription entry: {}",
+                err
+            );
+            return;
+        }
+    };
+    if text.trim().is_empty() {
+        return;
+    }
+    if let Err(err) = crate::utils::paste(text, app.clone()) {
+        error!("Failed to paste last transcript: {}", err);
     }
 }
 

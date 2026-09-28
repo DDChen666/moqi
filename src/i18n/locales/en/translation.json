@@ -3,12 +3,11 @@
   "tray": {
     "settings": "Settings...",
     "checkUpdates": "Check for Updates...",
-    "copyLastTranscript": "Copy Last Transcript",
-    "unloadModel": "Unload Model",
-    "model": "Model",
+    "copyLastTranscript": "Copy Last Result",
     "quit": "Quit",
     "cancel": "Cancel",
-    "secureInputWarning": "⚠ Shortcuts blocked by Secure Input"
+    "secureInputWarning": "⚠ Shortcuts blocked by Secure Input",
+    "pasteLastTranscript": "Paste Last Result"
   },
   "sidebar": {
     "general": "General",
