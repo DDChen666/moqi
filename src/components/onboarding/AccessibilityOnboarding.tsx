@@ -11,12 +11,15 @@ import { toast } from "sonner";
 import { commands } from "@/bindings";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { YuyinMark } from "@/yuyin/YuyinLogo"; // Yuyin fork
-import { ReadyScreen } from "@/yuyin/ReadyScreen"; // Yuyin fork
+import { ModelRow, useMoqiModel } from "@/yuyin/onboarding/ModelRow"; // Yuyin fork
+import { PrimaryButton } from "@/yuyin/window/ui"; // Yuyin fork
 import { Accessibility, Mic, Check, Loader2 } from "lucide-react";
 
 interface AccessibilityOnboardingProps {
   onComplete: () => void;
   preview?: boolean;
+  /** Yuyin fork: first of three setup steps (new users). */
+  showSteps?: boolean;
 }
 
 type PermissionStatus = "checking" | "needed" | "waiting" | "granted";
@@ -30,6 +33,7 @@ interface PermissionsState {
 const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
   onComplete,
   preview = false,
+  showSteps = false,
 }) => {
   const { t } = useTranslation();
   const refreshAudioDevices = useSettingsStore(
@@ -44,8 +48,11 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
     accessibility: "checking",
     microphone: "checking",
   });
-  // Yuyin fork: permissions were granted during this visit (not already on launch).
-  const [justGranted, setJustGranted] = useState(false);
+  // Yuyin fork: the speech model is the third thing to get ready. Users who
+  // already had everything on launch pass straight through (autoComplete);
+  // anyone who had to do something presses 繼續 when all three are done.
+  const model = useMoqiModel(preview);
+  const [autoComplete, setAutoComplete] = useState(false);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const errorCountRef = useRef<number>(0);
@@ -135,7 +142,7 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
           setPermissions(newState);
 
           if (accessibilityGranted && microphoneGranted) {
-            await completeOnboarding();
+            setAutoComplete(true); // Yuyin fork: once the model is ready too
           }
         } catch (error) {
           console.error("Failed to check macOS permissions:", error);
@@ -158,7 +165,7 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
         });
 
         if (microphoneGranted) {
-          await completeOnboarding();
+          setAutoComplete(true); // Yuyin fork
         }
       } catch (error) {
         console.warn("Failed to check Windows microphone permissions:", error);
@@ -166,7 +173,7 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
           accessibility: "granted",
           microphone: "granted",
         });
-        await completeOnboarding();
+        setAutoComplete(true); // Yuyin fork
       }
     };
 
@@ -189,8 +196,7 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
               clearInterval(pollingRef.current);
               pollingRef.current = null;
             }
-
-            await completeOnboarding();
+            // Yuyin fork: the user continues with 繼續.
           }
 
           errorCountRef.current = 0;
@@ -229,9 +235,7 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
             clearInterval(pollingRef.current);
             pollingRef.current = null;
           }
-          // Yuyin fork: just granted — show the ready screen; its button
-          // calls completeOnboarding().
-          setJustGranted(true);
+          // Yuyin fork: the user continues with 繼續.
         }
 
         // Reset error count on success
@@ -251,6 +255,11 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
       }
     }, 1000);
   }, [completeOnboarding, hasWindowsMicrophoneAccess, permissionPlatform, t]);
+
+  // Yuyin fork: everything was already in place on launch.
+  useEffect(() => {
+    if (autoComplete && model.ready) completeOnboarding();
+  }, [autoComplete, model.ready, completeOnboarding]);
 
   // Cleanup polling and timeouts on unmount
   useEffect(() => {
@@ -312,23 +321,8 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
   }
 
   // Yuyin fork: an Apple-style welcome — the app icon, one sentence on what
-  // the app does, and a grouped list with a row per permission.
-  if (allGranted && justGranted) {
-    return <ReadyScreen onStart={completeOnboarding} />;
-  }
-
-  if (allGranted) {
-    return (
-      <div className="h-screen w-full flex flex-col items-center justify-center gap-3 bg-background">
-        <div className="w-14 h-14 rounded-full bg-[#30d158] grid place-items-center">
-          <Check className="w-8 h-8 text-white" strokeWidth={2.6} />
-        </div>
-        <p className="text-[17px] font-semibold text-text">
-          {t("onboarding.permissions.allGranted")}
-        </p>
-      </div>
-    );
-  }
+  // the app does, and a grouped list: the two permissions and the model.
+  const ready = allGranted && model.ready;
 
   const renderRow = (
     Icon: typeof Mic,
@@ -376,7 +370,17 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
   return (
     <div className="h-screen w-full flex flex-col items-center justify-center p-8 bg-background">
       <div data-tauri-drag-region className="fixed top-0 inset-x-0 h-[52px]" />
-      <div className="w-full max-w-[440px] flex flex-col items-center">
+      {showSteps && (
+        <div
+          className="fixed top-[22px] end-6 flex gap-1.5"
+          aria-label={t("moqi.onboarding.step", { n: 1, total: 3 })}
+        >
+          <span className="w-[18px] h-1 rounded-sm bg-text" />
+          <span className="w-[18px] h-1 rounded-sm bg-black/15 dark:bg-white/20" />
+          <span className="w-[18px] h-1 rounded-sm bg-black/15 dark:bg-white/20" />
+        </div>
+      )}
+      <div className="w-full max-w-[460px] flex flex-col items-center">
         <YuyinMark
           size={76}
           className="drop-shadow-[0_10px_20px_rgba(0,0,0,0.22)]"
@@ -410,10 +414,23 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
               handleGrantAccessibility,
               t("onboarding.permissions.grant"),
             )}
+          <ModelRow model={model} />
         </div>
-        <p className="mt-4 text-[12px] text-text/45 text-center">
+        <p className="mt-4 text-[12px] text-muted text-center">
           {t("onboarding.permissions.privacy")}
         </p>
+        <PrimaryButton
+          className="mt-5"
+          disabled={!ready}
+          onClick={() => completeOnboarding()}
+        >
+          {t("moqi.onboarding.continue")}
+        </PrimaryButton>
+        {!ready && (
+          <span className="mt-2 text-[11px] text-muted">
+            {t("moqi.onboarding.continueHint")}
+          </span>
+        )}
       </div>
     </div>
   );

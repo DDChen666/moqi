@@ -173,6 +173,22 @@
   width: 13px;
   height: 13px;
 }
+/* Transparency: where the text goes while tidying, or that nothing left. */
+.yy-dest {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+  padding-left: 10px;
+  border-left: 1px solid rgba(255, 255, 255, 0.18);
+  animation: yy-fade 0.5s both;
+}
+.yy-dest svg {
+  width: 10px;
+  height: 10px;
+}
+
 /* Hands-free (double-tap): says why releasing the key did not stop it. */
 .yy-hands {
   color: #8e8e93;

@@ -6,8 +6,12 @@ import { invoke } from "@tauri-apps/api/core";
 /** 原話 / 整理 / 潤飾 */
 export type Level = "raw" | "tidy" | "polish";
 
+/** Where the clean-up runs: DeepSeek, any OpenAI-compatible service, or nowhere. */
+export type Service = "deepseek" | "custom" | "none";
+
 export interface YuyinConfig {
   level: Level;
+  service: Service;
   vocab: string[];
   base_url: string;
   model: string;
@@ -58,6 +62,8 @@ export const yuyinApi = {
   stats: () => invoke<YuyinStats>("yuyin_stats"),
   /** Keyed by the history entry's recording file name. */
   historyMeta: () => invoke<Record<string, EntryMeta>>("yuyin_history_meta"),
+  /** History's 重貼: back to the previous app, then paste. */
+  repaste: (text: string) => invoke<void>("yuyin_repaste", { text }),
   reportError: (message: string) =>
     invoke<void>("yuyin_report_error", { message }).catch(() => {}),
 };

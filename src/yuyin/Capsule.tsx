@@ -20,6 +20,8 @@ interface ContextEvent {
   app: string;
   /** Double-tap: the key no longer ends the recording, the next press does. */
   hands_free: boolean;
+  /** Where this dictation's text goes ("DeepSeek"); null: nothing leaves. */
+  sends_to: string | null;
 }
 
 const BARS = 13;
@@ -252,6 +254,21 @@ export const Capsule: React.FC<CapsuleProps> = ({
                   {t("overlay.yuyin.polishing")}
                 </span>
               )}
+              {polishing && ctx?.sends_to && (
+                <span className="yy-dest">
+                  <svg viewBox="0 0 16 16" aria-hidden="true">
+                    <path
+                      d="M8 13V3.5M4.2 7.2 8 3.4l3.8 3.8"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  {t("overlay.yuyin.sendsTo", { to: ctx.sends_to })}
+                </span>
+              )}
             </>
           )}
           {state === "done" && (
@@ -265,6 +282,29 @@ export const Capsule: React.FC<CapsuleProps> = ({
               </defs>
               <path d="M3.5 8.4l3 3 6-6.6" stroke="url(#yy-prism)" />
             </svg>
+          )}
+          {state === "done" && ctx && !ctx.sends_to && (
+            <span className="yy-dest">
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <rect
+                  x="3.2"
+                  y="7"
+                  width="9.6"
+                  height="6.8"
+                  rx="1.6"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                />
+                <path
+                  d="M5.4 7V5.2a2.6 2.6 0 0 1 5.2 0V7"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                />
+              </svg>
+              {t("overlay.yuyin.allLocal")}
+            </span>
           )}
           {state === "fallback" && (
             <>

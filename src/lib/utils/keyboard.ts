@@ -1,3 +1,4 @@
+import i18next from "i18next"; // Yuyin fork: the same instance the app initializes
 /**
  * Keyboard utility functions for handling keyboard events
  */
@@ -210,7 +211,11 @@ export const formatKeyCombination = (
   _osType: OSType,
 ): string => {
   if (!combination) return "";
-  return combination.split("+").map(formatKeyPart).join(" + ");
+  const label = combination.split("+").map(formatKeyPart).join(" + ");
+  // Yuyin fork: key sides in Chinese ("右 Option"); key names stay as printed.
+  return i18next.language?.startsWith("zh")
+    ? label.replace(/\bRight /g, "右 ").replace(/\bLeft /g, "左 ")
+    : label;
 };
 
 /**

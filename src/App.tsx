@@ -15,37 +15,22 @@ import {
 } from "tauri-plugin-macos-permissions-api";
 import { ModelStateEvent, RecordingErrorEvent } from "./lib/types/events";
 import "./App.css";
-import AccessibilityPermissions from "./components/AccessibilityPermissions";
-import SecureInputWarning from "./components/SecureInputWarning";
-import Footer from "./components/footer";
-import Onboarding, { AccessibilityOnboarding } from "./components/onboarding";
-import {
-  DebugSettings,
-  type OnboardingPreviewStep,
-} from "./components/settings";
-import { Sidebar, SidebarSection, SECTIONS_CONFIG } from "./components/Sidebar";
+import { AccessibilityOnboarding } from "./components/onboarding";
+import { type OnboardingPreviewStep } from "./components/settings";
+// Yuyin fork: our window and setup steps replace Handy's sidebar, footer and
+// model picker (design: https://claude.ai/artifact/CcyDKSUUKAkAwsPq5siWFA).
+import { MoqiWindow } from "./yuyin/window/MoqiWindow";
+import { PolishStep } from "./yuyin/onboarding/PolishStep";
+import { ReadyScreen } from "./yuyin/ReadyScreen";
 import { useSettings } from "./hooks/useSettings";
 import { useSettingsStore } from "./stores/settingsStore";
 import { commands } from "@/bindings";
-import { getLanguageDirection, initializeRTL } from "@/lib/utils/rtl";
+import { initializeRTL } from "@/lib/utils/rtl";
 
-type OnboardingStep = "accessibility" | "model" | "done";
+type OnboardingStep = "accessibility" | "polish" | "ready" | "done";
 
 // Stable identity so preview effects do not re-run due to callback changes.
 const NOOP = () => {};
-
-const renderSettingsContent = (
-  section: SidebarSection,
-  onPreviewOnboarding: (step: OnboardingPreviewStep) => void,
-) => {
-  if (section === "debug") {
-    return <DebugSettings onPreviewOnboarding={onPreviewOnboarding} />;
-  }
-
-  const ActiveComponent =
-    SECTIONS_CONFIG[section]?.component || SECTIONS_CONFIG.general.component;
-  return <ActiveComponent />;
-};
 
 function App() {
   const { t, i18n } = useTranslation();
@@ -57,10 +42,7 @@ function App() {
   // Track if this is a returning user who just needs to grant permissions
   // (vs a new user who needs full onboarding including model selection)
   const [isReturningUser, setIsReturningUser] = useState(false);
-  const [currentSection, setCurrentSection] =
-    useState<SidebarSection>("general");
   const { settings, updateSetting } = useSettings();
-  const direction = getLanguageDirection(i18n.language);
   const refreshAudioDevices = useSettingsStore(
     (state) => state.refreshAudioDevices,
   );
@@ -68,11 +50,9 @@ function App() {
     (state) => state.refreshOutputDevices,
   );
   const hasCompletedPostOnboardingInit = useRef(false);
-  const settingsScrollRef = useRef<HTMLDivElement>(null);
   const isShowingOnboarding =
     onboardingPreview !== null ||
-    onboardingStep === "accessibility" ||
-    onboardingStep === "model";
+    (onboardingStep !== null && onboardingStep !== "done");
 
   // Classic scrollbars consume layout space. Reserve a matching gutter on the
   // opposite edge while onboarding is visible so its content stays centered in
@@ -82,11 +62,6 @@ function App() {
     document.documentElement.toggleAttribute(attribute, isShowingOnboarding);
     return () => document.documentElement.removeAttribute(attribute);
   }, [isShowingOnboarding]);
-
-  // Reset the scroll position whenever the active section changes.
-  useLayoutEffect(() => {
-    settingsScrollRef.current?.scrollTo({ top: 0 });
-  }, [currentSection]);
 
   useEffect(() => {
     checkOnboardingStatus();
@@ -280,14 +255,9 @@ function App() {
   };
 
   const handleAccessibilityComplete = () => {
-    // Returning users already have models, skip to main app
-    // New users need to select a model
-    setOnboardingStep(isReturningUser ? "done" : "model");
-  };
-
-  const handleModelSelected = () => {
-    // Transition to main app - user has started a download
-    setOnboardingStep("done");
+    // Yuyin fork: returning users only had to re-grant a permission; new
+    // users go on to choose 原話 / 整理 and try it once.
+    setOnboardingStep(isReturningUser ? "done" : "polish");
   };
 
   // Rendered once around every step below (including onboarding) so
@@ -328,9 +298,9 @@ function App() {
     content = (
       <>
         {onboardingPreview === "accessibility" ? (
-          <AccessibilityOnboarding onComplete={NOOP} preview />
+          <AccessibilityOnboarding onComplete={NOOP} preview showSteps />
         ) : (
-          <Onboarding onModelSelected={NOOP} preview />
+          <PolishStep onDone={NOOP} preview />
         )}
         <button
           type="button"
@@ -343,45 +313,18 @@ function App() {
     );
   } else if (onboardingStep === "accessibility") {
     content = (
-      <AccessibilityOnboarding onComplete={handleAccessibilityComplete} />
+      <AccessibilityOnboarding
+        onComplete={handleAccessibilityComplete}
+        showSteps={!isReturningUser}
+      />
     );
-  } else if (onboardingStep === "model") {
-    content = <Onboarding onModelSelected={handleModelSelected} />;
+  } else if (onboardingStep === "polish") {
+    content = <PolishStep onDone={() => setOnboardingStep("ready")} />;
+  } else if (onboardingStep === "ready") {
+    content = <ReadyScreen onStart={() => setOnboardingStep("done")} />;
   } else {
-    content = (
-      <div
-        dir={direction}
-        className="h-screen flex flex-col select-none cursor-default"
-      >
-        {/* Yuyin fork: no What's New popup — its notes are Handy's releases. */}
-        {/* Main content area that takes remaining space */}
-        <div className="flex-1 flex overflow-hidden">
-          <Sidebar
-            activeSection={currentSection}
-            onSectionChange={setCurrentSection}
-          />
-          {/* Scrollable content area — Yuyin fork: an opaque pane under the
-              transparent title bar, headed by the section's name. */}
-          <div className="flex-1 flex flex-col overflow-hidden bg-background">
-            <div
-              data-tauri-drag-region
-              className="h-[52px] shrink-0 flex items-center px-7 text-[15px] font-semibold text-text"
-            >
-              {t(SECTIONS_CONFIG[currentSection].labelKey)}
-            </div>
-            <div ref={settingsScrollRef} className="flex-1 overflow-y-auto">
-              <div className="flex flex-col items-center p-4 gap-4">
-                <AccessibilityPermissions />
-                <SecureInputWarning />
-                {renderSettingsContent(currentSection, setOnboardingPreview)}
-              </div>
-            </div>
-          </div>
-        </div>
-        {/* Fixed footer at bottom */}
-        <Footer />
-      </div>
-    );
+    // Yuyin fork: no What's New popup — its notes are Handy's releases.
+    content = <MoqiWindow onPreviewOnboarding={setOnboardingPreview} />;
   }
 
   return (

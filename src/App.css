@@ -16,6 +16,9 @@
   /* Yuyin fork: grouped-list surfaces and hairline borders */
   --color-surface: var(--color-surface);
   --color-hairline: var(--color-hairline);
+  --color-muted: var(--color-muted);
+  --color-fill: var(--color-fill);
+  --color-positive: var(--color-positive);
 }
 
 :root {

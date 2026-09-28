@@ -974,8 +974,8 @@ pub fn run(cli_args: CliArgs) {
             let mut win_builder =
                 tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::App("/".into()))
                     .title("Moqi")
-                    .inner_size(760.0, 580.0) // Yuyin fork: room for a wider sidebar (was 680x570)
-                    .min_inner_size(760.0, 580.0)
+                    .inner_size(960.0, 640.0) // Yuyin fork: the 1.0 window (was 680x570)
+                    .min_inner_size(900.0, 600.0)
                     .resizable(true)
                     .maximizable(true)
                     .visible(false);

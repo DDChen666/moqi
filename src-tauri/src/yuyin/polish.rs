@@ -96,7 +96,11 @@ async fn run(
     let Some(system) = prompt::system_prompt(cfg.level, context, &cfg.vocab) else {
         return Ok(None);
     };
-    let key = secrets::api_key().ok_or("no API key in the Keychain")?;
+    // No key yet (setup skipped): nothing to do, not a failure — the capsule
+    // would otherwise say "clean-up failed" on every dictation.
+    let Some(key) = secrets::api_key() else {
+        return Ok(None);
+    };
 
     let mut body = json!({
         "model": cfg.model,

@@ -10,6 +10,10 @@
   --light-color-logo-stroke: #1d1d1f;
   --light-color-surface: #ffffff;
   --light-color-hairline: rgba(0, 0, 0, 0.09);
+  /* Yuyin fork: secondary text, chip/button fill, "stays local" green */
+  --light-color-muted: #6e6e73;
+  --light-color-fill: #f0f0f3;
+  --light-color-positive: #248a3d;
 
   --dark-color-text: #f5f5f7;
   --dark-color-background: #1e1e1e;
@@ -17,6 +21,9 @@
   --dark-color-logo-stroke: #f5f5f7;
   --dark-color-surface: #2a2a2c;
   --dark-color-hairline: rgba(255, 255, 255, 0.09);
+  --dark-color-muted: #98989d;
+  --dark-color-fill: rgba(255, 255, 255, 0.08);
+  --dark-color-positive: #30d158;
 
   /* Semantic status colors. First used by SecureInputWarning; intended to
      replace the ad-hoc yellow-500/red-500 usages (e.g. ui/Alert.tsx) over
@@ -41,6 +48,9 @@
   --color-error: var(--light-color-error);
   --color-surface: var(--light-color-surface);
   --color-hairline: var(--light-color-hairline);
+  --color-muted: var(--light-color-muted);
+  --color-fill: var(--light-color-fill);
+  --color-positive: var(--light-color-positive);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -53,6 +63,9 @@
     --color-error: var(--dark-color-error);
     --color-surface: var(--dark-color-surface);
     --color-hairline: var(--dark-color-hairline);
+    --color-muted: var(--dark-color-muted);
+    --color-fill: var(--dark-color-fill);
+    --color-positive: var(--dark-color-positive);
   }
 }
 
@@ -75,6 +88,9 @@
   --color-error: var(--light-color-error);
   --color-surface: var(--light-color-surface);
   --color-hairline: var(--light-color-hairline);
+  --color-muted: var(--light-color-muted);
+  --color-fill: var(--light-color-fill);
+  --color-positive: var(--light-color-positive);
 }
 
 :root[data-theme="dark"] {
@@ -86,4 +102,7 @@
   --color-error: var(--dark-color-error);
   --color-surface: var(--dark-color-surface);
   --color-hairline: var(--dark-color-hairline);
+  --color-muted: var(--dark-color-muted);
+  --color-fill: var(--dark-color-fill);
+  --color-positive: var(--dark-color-positive);
 }

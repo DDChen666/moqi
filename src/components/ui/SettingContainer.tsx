@@ -180,7 +180,10 @@ export const SettingContainer: React.FC<SettingContainerProps> = ({
         <h3 className={`text-[13px] ${disabled ? "opacity-50" : ""}`}>
           {title}
         </h3>
-        <p className={`text-sm ${disabled ? "opacity-50" : ""}`}>
+        {/* Yuyin fork: a quiet caption, as in System Settings */}
+        <p
+          className={`text-[11px] leading-snug text-muted mt-0.5 ${disabled ? "opacity-50" : ""}`}
+        >
           {description}
         </p>
       </div>
