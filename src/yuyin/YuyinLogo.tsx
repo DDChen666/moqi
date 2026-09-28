@@ -1,10 +1,8 @@
-// Yuyin fork: our mark (the obsidian icon: a voice wave that calms into a
+// Yuyin fork: the 默契 / Moqi mark (the obsidian icon: a voice wave that calms into a
 // line and stops at a caret) plus the wordmark. Replaces HandyTextLogo.
 // Source artwork: yuyin/brand/render.html.
 import React, { useId } from "react";
-
-/** Working name; the product name isn't translated. */
-export const PRODUCT_NAME = "Yuyin";
+import { useTranslation } from "react-i18next";
 
 const WAVE =
   "M250 512 C 282 382, 338 382, 370 512 C 400 636, 458 636, 488 512 C 512 432, 560 432, 584 512 C 602 566, 630 566, 646 512 L 688 512";
@@ -78,6 +76,7 @@ const YuyinLogo: React.FC<{ width?: number; className?: string }> = ({
   width = 120,
   className = "",
 }) => {
+  const { t } = useTranslation();
   const mark = Math.round(width * 0.26);
   return (
     <div
@@ -89,7 +88,7 @@ const YuyinLogo: React.FC<{ width?: number; className?: string }> = ({
         className="font-semibold text-text"
         style={{ fontSize: Math.round(width * 0.17), letterSpacing: "-0.02em" }}
       >
-        {PRODUCT_NAME}
+        {t("appName")}
       </span>
     </div>
   );

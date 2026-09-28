@@ -1,0 +1,4 @@
+/* 默契：Dock、Finder、選單列與「系統設定」裡顯示的名稱，以及權限說明。 */
+CFBundleName = "默契";
+CFBundleDisplayName = "默契";
+NSMicrophoneUsageDescription = "默契需要麥克風來聽你說話。聲音只在這台 Mac 上辨識，不會上傳。";

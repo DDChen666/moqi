@@ -3,6 +3,14 @@
 <plist version="1.0">
 <dict>
   <key>NSMicrophoneUsageDescription</key>
-  <string>Request microphone access to transcribe audio locally</string>
+  <string>Moqi uses the microphone to hear you. Your voice is recognized on this Mac and never uploaded.</string>
+  <!-- Yuyin fork: localized names (默契 / Moqi) come from yuyin/brand/lproj/ -->
+  <key>LSHasLocalizedDisplayName</key>
+  <true/>
+  <key>CFBundleLocalizations</key>
+  <array>
+    <string>en</string>
+    <string>zh-Hant</string>
+  </array>
 </dict>
 </plist>

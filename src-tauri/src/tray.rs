@@ -445,9 +445,9 @@ pub fn tray_tooltip() -> String {
 
 fn version_label() -> String {
     if cfg!(debug_assertions) {
-        format!("Handy v{} (Dev)", env!("CARGO_PKG_VERSION"))
+        format!("Moqi v{} (Dev)", env!("CARGO_PKG_VERSION")) // Yuyin fork: product name
     } else {
-        format!("Handy v{}", env!("CARGO_PKG_VERSION"))
+        format!("Moqi v{}", env!("CARGO_PKG_VERSION"))
     }
 }
 

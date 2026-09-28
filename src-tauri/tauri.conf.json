@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Yuyin",
+  "productName": "Moqi",
   "version": "0.9.7",
   "identifier": "tw.yuyin.dictation",
   "build": {
@@ -37,7 +37,10 @@
       "icons/icon.ico"
     ],
     "macOS": {
-      "files": {},
+      "files": {
+        "Resources/zh-Hant.lproj/InfoPlist.strings": "../yuyin/brand/lproj/zh-Hant.lproj/InfoPlist.strings",
+        "Resources/en.lproj/InfoPlist.strings": "../yuyin/brand/lproj/en.lproj/InfoPlist.strings"
+      },
       "hardenedRuntime": true,
       "minimumSystemVersion": "10.15",
       "signingIdentity": "-",

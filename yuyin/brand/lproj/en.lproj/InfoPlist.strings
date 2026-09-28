@@ -1,0 +1,4 @@
+/* Moqi: the name shown in the Dock, Finder, the menu bar and System Settings, plus the permission prompt. */
+CFBundleName = "Moqi";
+CFBundleDisplayName = "Moqi";
+NSMicrophoneUsageDescription = "Moqi uses the microphone to hear you. Your voice is recognized on this Mac and never uploaded.";

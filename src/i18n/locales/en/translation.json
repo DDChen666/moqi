@@ -1,4 +1,5 @@
 {
+  "appName": "Moqi",
   "tray": {
     "settings": "Settings...",
     "checkUpdates": "Check for Updates...",
@@ -102,7 +103,7 @@
     },
     "permissions": {
       "title": "Permissions Required",
-      "description": "Yuyin needs a couple of permissions to work properly.",
+      "description": "Moqi needs a couple of permissions to work properly.",
       "microphone": {
         "title": "Microphone",
         "description": "To hear you. It records only while you hold the key."
@@ -119,7 +120,7 @@
         "checkFailed": "Failed to check permissions. Please try again.",
         "requestFailed": "Failed to request permission. Please try again."
       },
-      "welcome": "Welcome to Yuyin",
+      "welcome": "Welcome to Moqi",
       "intro": "Hold the right Option key and speak. Let go, and the text appears at your cursor. First, allow two things.",
       "privacy": "Your voice is recognized on this Mac and never uploaded."
     }
@@ -165,7 +166,7 @@
     "general": {
       "title": "General",
       "shortcut": {
-        "title": "Yuyin Shortcuts",
+        "title": "Moqi Shortcuts",
         "description": "Configure keyboard shortcuts to trigger speech-to-text recording",
         "loading": "Loading shortcuts...",
         "none": "No shortcuts configured",
@@ -229,7 +230,7 @@
       },
       "rescan": {
         "label": "Rescan",
-        "tooltip": "Rescan for models added to the models folder or Hugging Face cache outside Yuyin"
+        "tooltip": "Rescan for models added to the models folder or Hugging Face cache outside Moqi"
       },
       "noModelsMatch": "No models match this filter."
     },
@@ -297,11 +298,11 @@
       },
       "autostart": {
         "label": "Launch on Startup",
-        "description": "Automatically start Yuyin when you log in to your computer."
+        "description": "Automatically start Moqi when you log in to your computer."
       },
       "showTrayIcon": {
         "label": "Show Tray Icon",
-        "description": "Display the Yuyin icon in the system tray."
+        "description": "Display the Moqi icon in the system tray."
       },
       "overlay": {
         "style": {
@@ -497,7 +498,7 @@
       },
       "updateChecks": {
         "label": "Check for Updates",
-        "description": "Automatically check for new versions of Yuyin",
+        "description": "Automatically check for new versions of Moqi",
         "lockedDescription": "Disabled by system configuration (HANDY_DISABLE_UPDATER)"
       },
       "whatsNewPreview": {
@@ -589,7 +590,7 @@
       },
       "keyboardDiagnostic": {
         "title": "Keyboard Diagnostic",
-        "description": "Checks whether keyboard events reach Yuyin. Only event counts are recorded — never which keys you press.",
+        "description": "Checks whether keyboard events reach Moqi. Only event counts are recorded — never which keys you press.",
         "run": "Run 10s diagnostic",
         "running": "Listening… press your shortcut a few times (e.g. Option+Space)",
         "secureInputLabel": "Secure Input",
@@ -603,7 +604,7 @@
         "mouse": "Mouse",
         "verdictBlocked": "Secure Input is blocking key events — keyed shortcuts cannot work until it is resolved.",
         "verdictSuspicious": "Modifier events arrived but no key events — something is suppressing keys even though Secure Input reports disabled. Please report this on GitHub.",
-        "verdictOk": "Key events are reaching Yuyin normally.",
+        "verdictOk": "Key events are reaching Moqi normally.",
         "verdictNoEvents": "No events captured — did you press any keys during the test?",
         "failed": "Diagnostic failed: {{error}}"
       }
@@ -612,15 +613,15 @@
       "title": "About",
       "version": {
         "title": "Version",
-        "description": "Current version of Yuyin"
+        "description": "Current version of Moqi"
       },
       "whatsNewUpdates": {
         "label": "Show What's New",
-        "description": "Show release notes after Yuyin updates"
+        "description": "Show release notes after Moqi updates"
       },
       "appDataDirectory": {
         "title": "App Data Directory",
-        "description": "Location where Yuyin stores its data"
+        "description": "Location where Moqi stores its data"
       },
       "sourceCode": {
         "title": "Source Code",
@@ -637,7 +638,7 @@
         "ggml": {
           "title": "ggml",
           "description": "High-performance tensor library for on-device machine learning inference",
-          "details": "Yuyin's local speech-to-text is built on transcribe.cpp and ggml. Thanks to the amazing work by Georgi Gerganov and contributors."
+          "details": "Moqi's local speech-to-text is built on transcribe.cpp and ggml. Thanks to the amazing work by Georgi Gerganov and contributors."
         }
       }
     }
@@ -658,7 +659,7 @@
     "portableUpdateBrowseButton": "Open GitHub Releases"
   },
   "whatsNew": {
-    "title": "New in Yuyin v{{version}}"
+    "title": "New in Moqi v{{version}}"
   },
   "common": {
     "loading": "Loading...",
@@ -670,7 +671,7 @@
     "noOptionsFound": "No options found"
   },
   "accessibility": {
-    "permissionsDescription": "Yuyin needs accessibility permissions to type transcribed text.",
+    "permissionsDescription": "Moqi needs accessibility permissions to type transcribed text.",
     "openSettings": "Open System Settings"
   },
   "errors": {
@@ -693,11 +694,11 @@
   },
   "appLanguage": {
     "title": "Application Language",
-    "description": "Change the language of the Yuyin interface"
+    "description": "Change the language of the Moqi interface"
   },
   "theme": {
     "title": "Application Theme",
-    "description": "Choose whether Yuyin follows your system theme or stays light or dark",
+    "description": "Choose whether Moqi follows your system theme or stays light or dark",
     "options": {
       "system": "System",
       "light": "Light",

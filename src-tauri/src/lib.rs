@@ -951,7 +951,7 @@ pub fn run(cli_args: CliArgs) {
             // for portable mode (redirects WebView2 cache to portable Data dir)
             let mut win_builder =
                 tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::App("/".into()))
-                    .title("Yuyin")
+                    .title("Moqi")
                     .inner_size(760.0, 580.0) // Yuyin fork: room for a wider sidebar (was 680x570)
                     .min_inner_size(760.0, 580.0)
                     .resizable(true)

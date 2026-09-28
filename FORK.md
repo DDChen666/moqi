@@ -1,4 +1,6 @@
-# 關於這個分支（暫用代號 Yuyin）
+# 關於這個分支：默契 Moqi
+
+> 產品名稱是「默契」（英文 Moqi）。程式碼裡的 `yuyin`、註解裡的 `Yuyin fork:` 是早期的內部代號，保留不改。
 
 這個程式是從 [Handy](https://github.com/cjpais/Handy) 分出來的（作者 CJ Pais，MIT 授權）。
 分出的版本：upstream `main` 的 `29bd2c0`（2026-09-28，Handy 0.9.7）。
@@ -28,6 +30,6 @@ Handy 已經做好 Mac 上最難的部分：
 ## 授權
 
 - 保留原本的 `LICENSE`（Copyright (c) 2025 CJ Pais）。App 的「關於」頁面也要顯示 Handy 的授權聲明。
-- MIT 不包含商標，所以不能用「Handy」這個名字。App 名稱、識別碼（`tw.yuyin.dictation`）都已經換掉，自動更新也關了。
+- MIT 不包含商標，所以不能用「Handy」這個名字。App 名稱（默契／Moqi）、識別碼（`tw.yuyin.dictation`）都已經換掉，自動更新也關了。
   - 自動更新在 `settings.rs` 的 `update_checks_forced_disabled()`。
 - 模型下載目前還是走 Handy 的伺服器（`blob.handy.computer`）。之後要改成自己的來源，或使用者自行下載。
