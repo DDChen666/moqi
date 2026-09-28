@@ -952,11 +952,30 @@ pub fn run(cli_args: CliArgs) {
             let mut win_builder =
                 tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::App("/".into()))
                     .title("Yuyin")
-                    .inner_size(680.0, 570.0)
-                    .min_inner_size(680.0, 570.0)
+                    .inner_size(760.0, 580.0) // Yuyin fork: room for a wider sidebar (was 680x570)
+                    .min_inner_size(760.0, 580.0)
                     .resizable(true)
                     .maximizable(true)
                     .visible(false);
+
+            // Yuyin fork: a System Settings–style window. Content runs under a
+            // transparent title bar, the traffic lights sit centred in our
+            // 52 px top bar, and the sidebar shows macOS's sidebar material
+            // (the web view paints the content pane itself).
+            #[cfg(target_os = "macos")]
+            {
+                win_builder = win_builder
+                    .title_bar_style(tauri::TitleBarStyle::Overlay)
+                    .hidden_title(true)
+                    .traffic_light_position(tauri::LogicalPosition::new(20.0, 20.0))
+                    .transparent(true)
+                    .effects(tauri::utils::config::WindowEffectsConfig {
+                        effects: vec![tauri::window::Effect::Sidebar],
+                        state: Some(tauri::window::EffectState::FollowsWindowActiveState),
+                        radius: None,
+                        color: None,
+                    });
+            }
 
             if let Some(data_dir) = portable::data_dir() {
                 win_builder = win_builder.data_directory(data_dir.join("webview"));

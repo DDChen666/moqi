@@ -364,8 +364,15 @@ function App() {
             activeSection={currentSection}
             onSectionChange={setCurrentSection}
           />
-          {/* Scrollable content area */}
-          <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Scrollable content area — Yuyin fork: an opaque pane under the
+              transparent title bar, headed by the section's name. */}
+          <div className="flex-1 flex flex-col overflow-hidden bg-background">
+            <div
+              data-tauri-drag-region
+              className="h-[52px] shrink-0 flex items-center px-7 text-[15px] font-semibold text-text"
+            >
+              {t(SECTIONS_CONFIG[currentSection].labelKey)}
+            </div>
             <div ref={settingsScrollRef} className="flex-1 overflow-y-auto">
               <div className="flex flex-col items-center p-4 gap-4">
                 <AccessibilityPermissions />

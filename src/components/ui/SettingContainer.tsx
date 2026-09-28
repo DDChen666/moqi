@@ -48,17 +48,15 @@ export const SettingContainer: React.FC<SettingContainerProps> = ({
   };
 
   const containerClasses = grouped
-    ? "px-4 p-2"
-    : "px-4 p-2 rounded-lg border border-mid-gray/20";
+    ? "px-3.5 py-2.5"
+    : "px-3.5 py-2.5 rounded-[10px] bg-surface shadow-[0_0_0_0.5px_var(--color-hairline)]";
 
   if (layout === "stacked") {
     if (descriptionMode === "tooltip") {
       return (
         <div className={containerClasses}>
           <div className="flex items-center gap-2 mb-2">
-            <h3
-              className={`text-sm font-medium ${disabled ? "opacity-50" : ""}`}
-            >
+            <h3 className={`text-[13px] ${disabled ? "opacity-50" : ""}`}>
               {title}
             </h3>
             <div
@@ -107,7 +105,7 @@ export const SettingContainer: React.FC<SettingContainerProps> = ({
     return (
       <div className={containerClasses}>
         <div className="mb-2">
-          <h3 className={`text-sm font-medium ${disabled ? "opacity-50" : ""}`}>
+          <h3 className={`text-[13px] ${disabled ? "opacity-50" : ""}`}>
             {title}
           </h3>
           <p className={`text-sm ${disabled ? "opacity-50" : ""}`}>
@@ -121,17 +119,15 @@ export const SettingContainer: React.FC<SettingContainerProps> = ({
 
   // Horizontal layout (default)
   const horizontalContainerClasses = grouped
-    ? "flex items-center justify-between min-h-12 px-4 p-2"
-    : "flex items-center justify-between min-h-12 px-4 p-2 rounded-lg border border-mid-gray/20";
+    ? "flex items-center justify-between min-h-11 px-3.5 py-2"
+    : "flex items-center justify-between min-h-11 px-3.5 py-2 rounded-[10px] bg-surface shadow-[0_0_0_0.5px_var(--color-hairline)]";
 
   if (descriptionMode === "tooltip") {
     return (
       <div className={horizontalContainerClasses}>
         <div className="max-w-2/3">
           <div className="flex items-center gap-2">
-            <h3
-              className={`text-sm font-medium ${disabled ? "opacity-50" : ""}`}
-            >
+            <h3 className={`text-[13px] ${disabled ? "opacity-50" : ""}`}>
               {title}
             </h3>
             <div
@@ -181,7 +177,7 @@ export const SettingContainer: React.FC<SettingContainerProps> = ({
   return (
     <div className={horizontalContainerClasses}>
       <div className="max-w-2/3">
-        <h3 className={`text-sm font-medium ${disabled ? "opacity-50" : ""}`}>
+        <h3 className={`text-[13px] ${disabled ? "opacity-50" : ""}`}>
           {title}
         </h3>
         <p className={`text-sm ${disabled ? "opacity-50" : ""}`}>

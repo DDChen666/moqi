@@ -1,31 +1,35 @@
-/* Handy Colors */
+/* Handy Colors — Yuyin fork: Apple system palette (see 設計文件/介面/). */
 
 :root {
   /* Palette source of truth. Each themed color is defined once as a
      light/dark pair; the active tokens below and the `data-theme` overrides
      in App.css reference these, so a hex value lives in exactly one place. */
-  --light-color-text: #0f0f0f;
-  --light-color-background: #fbfbfb;
-  --light-color-logo-primary: #faa2ca;
-  --light-color-logo-stroke: #382731;
+  --light-color-text: #1d1d1f;
+  --light-color-background: #f5f5f7;
+  --light-color-logo-primary: #007aff;
+  --light-color-logo-stroke: #1d1d1f;
+  --light-color-surface: #ffffff;
+  --light-color-hairline: rgba(0, 0, 0, 0.09);
 
-  --dark-color-text: #fbfbfb;
-  --dark-color-background: #2c2b29;
-  --dark-color-logo-primary: #f28cbb;
-  --dark-color-logo-stroke: #fad1ed;
+  --dark-color-text: #f5f5f7;
+  --dark-color-background: #1e1e1e;
+  --dark-color-logo-primary: #0a84ff;
+  --dark-color-logo-stroke: #f5f5f7;
+  --dark-color-surface: #2a2a2c;
+  --dark-color-hairline: rgba(255, 255, 255, 0.09);
 
   /* Semantic status colors. First used by SecureInputWarning; intended to
      replace the ad-hoc yellow-500/red-500 usages (e.g. ui/Alert.tsx) over
      time so status styling is themeable from one place. */
-  --light-color-warning: #d97706;
-  --light-color-error: #dc2626;
-  --dark-color-warning: #fbbf24;
-  --dark-color-error: #f87171;
+  --light-color-warning: #ff9500;
+  --light-color-error: #ff3b30;
+  --dark-color-warning: #ff9f0a;
+  --dark-color-error: #ff453a;
 
   /* Tokens that do not change between light and dark */
-  --color-background-ui: #da5893;
+  --color-background-ui: #007aff;
   --color-text-stroke: #f6f6f6;
-  --color-mid-gray: #808080;
+  --color-mid-gray: #8e8e93;
 
   /* Active palette — defaults to light, follows the OS via the media query
      below, or is forced by `data-theme` (see the overrides below). */
@@ -35,6 +39,8 @@
   --color-logo-stroke: var(--light-color-logo-stroke);
   --color-warning: var(--light-color-warning);
   --color-error: var(--light-color-error);
+  --color-surface: var(--light-color-surface);
+  --color-hairline: var(--light-color-hairline);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -45,6 +51,8 @@
     --color-logo-stroke: var(--dark-color-logo-stroke);
     --color-warning: var(--dark-color-warning);
     --color-error: var(--dark-color-error);
+    --color-surface: var(--dark-color-surface);
+    --color-hairline: var(--dark-color-hairline);
   }
 }
 
@@ -65,6 +73,8 @@
   --color-logo-stroke: var(--light-color-logo-stroke);
   --color-warning: var(--light-color-warning);
   --color-error: var(--light-color-error);
+  --color-surface: var(--light-color-surface);
+  --color-hairline: var(--light-color-hairline);
 }
 
 :root[data-theme="dark"] {
@@ -74,4 +84,6 @@
   --color-logo-stroke: var(--dark-color-logo-stroke);
   --color-warning: var(--dark-color-warning);
   --color-error: var(--dark-color-error);
+  --color-surface: var(--dark-color-surface);
+  --color-hairline: var(--dark-color-hairline);
 }

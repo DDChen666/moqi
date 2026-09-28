@@ -13,6 +13,9 @@
   --color-mid-gray: var(--color-mid-gray);
   --color-warning: var(--color-warning);
   --color-error: var(--color-error);
+  /* Yuyin fork: grouped-list surfaces and hairline borders */
+  --color-surface: var(--color-surface);
+  --color-hairline: var(--color-hairline);
 }
 
 :root {
@@ -65,6 +68,26 @@
    Overlay scrollbars do not reserve a gutter, so this has no effect on them. */
 :root[data-onboarding-active] {
   scrollbar-gutter: stable both-edges;
+}
+
+/* Yuyin fork: the macOS window is transparent so the sidebar can show the
+   system sidebar material; each pane paints its own background. UI labels
+   aren't selectable, like a native app; editable fields still are. */
+:root[data-platform="macos"],
+:root[data-platform="macos"] body {
+  background-color: transparent;
+}
+body {
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: default;
+}
+input,
+textarea,
+[contenteditable="true"],
+.select-text {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 /* macOS - tint native overlay scrollbar thumb */
