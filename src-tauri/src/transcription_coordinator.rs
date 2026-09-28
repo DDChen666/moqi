@@ -10,6 +10,12 @@ use tauri::{AppHandle, Manager};
 
 const DEBOUNCE: Duration = Duration::from_millis(30);
 const RELEASE_GRACE: Duration = Duration::from_millis(50);
+/// Yuyin fork: push-to-talk releases shorter than this are taps (the same
+/// 0.3 s as `yuyin::session::MIN_HOLD`, which discards them) ...
+const TAP_MAX: Duration = Duration::from_millis(300);
+/// ... and a press this soon after a tap starts a hands-free session: the
+/// recording outlives the key and the next press ends it (double-tap).
+const DOUBLE_TAP_WINDOW: Duration = Duration::from_millis(400);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum PttAction {
@@ -222,6 +228,8 @@ struct CoordinatorState {
     last_press: Option<Instant>,
     pending_release: Option<PendingRelease>,
     pending_press: Option<PendingPress>,
+    /// Yuyin fork: when the last push-to-talk tap was released.
+    last_tap: Option<Instant>,
 }
 
 impl CoordinatorState {
@@ -232,6 +240,7 @@ impl CoordinatorState {
             last_press: None,
             pending_release: None,
             pending_press: None,
+            last_tap: None,
         }
     }
 
@@ -298,6 +307,16 @@ impl CoordinatorState {
             self.last_press = Some(now);
         }
 
+        // Yuyin fork: a push-to-talk press right after a tap is a double-tap,
+        // which starts a locked (hands-free) session.
+        let double_tap = input.is_pressed
+            && !input.external
+            && input.mode == ShortcutActivation::PushToTalk
+            && self
+                .last_tap
+                .take()
+                .is_some_and(|t| now.saturating_duration_since(t) <= DOUBLE_TAP_WINDOW);
+
         // A busy pipeline can't accept lifecycle changes now: classify the
         // input against any already-remembered press instead of dropping it
         // silently.
@@ -324,7 +343,7 @@ impl CoordinatorState {
                     );
                     self.pending_press = Some(PendingPress {
                         // Toggle never ends on a release: locked from the start.
-                        locked: input.mode == ShortcutActivation::Toggle,
+                        locked: input.mode == ShortcutActivation::Toggle || double_tap,
                         binding_id: input.binding_id,
                         hotkey_string: input.hotkey_string,
                         pressed_at: now,
@@ -345,7 +364,7 @@ impl CoordinatorState {
             match &self.stage {
                 Stage::Idle => {
                     // Toggle never ends on a release: locked from the start.
-                    let locked = input.mode == ShortcutActivation::Toggle;
+                    let locked = input.mode == ShortcutActivation::Toggle || double_tap;
                     return Some(self.begin_recording(
                         input.binding_id,
                         input.hotkey_string,
@@ -448,6 +467,8 @@ impl CoordinatorState {
             // No hold bookkeeping means we cannot tell a tap from a hold;
             // stopping is the safe reading (it is what push-to-talk always did).
             .unwrap_or(Duration::MAX);
+        // Yuyin fork: remember push-to-talk taps for double-tap detection.
+        self.last_tap = (threshold.is_zero() && held < TAP_MAX).then_some(released_at);
         if held >= threshold {
             return Some(self.begin_processing(binding_id, hotkey_string));
         }
@@ -674,6 +695,8 @@ fn run_effect(app: &AppHandle, state: &mut CoordinatorState, effect: Effect) {
             binding_id,
             hotkey_string,
         } => {
+            // Yuyin fork: the capsule shows when the key no longer ends it.
+            crate::yuyin::session::set_hands_free(state.is_locked());
             let started = start(app, &binding_id, &hotkey_string);
             state.on_start_result(&binding_id, started);
         }
@@ -1613,5 +1636,85 @@ mod tests {
             "held 400ms since the real key-down: must stop, not lock"
         );
         assert_eq!(state.stage, Stage::Processing);
+    }
+
+    // ---------------------------------------------------------------------
+    // Yuyin fork: double-tap for hands-free.
+    // ---------------------------------------------------------------------
+
+    /// Tap, then press again within the window: the second recording is
+    /// locked (its release is ignored) and the next press ends it.
+    #[test]
+    fn ptt_double_tap_starts_hands_free() {
+        let mut state = CoordinatorState::new();
+        let t0 = Instant::now();
+
+        assert!(matches!(
+            state.on_input(ptt_input(true), t0),
+            Some(Effect::Start { .. })
+        ));
+        assert!(state.on_input(ptt_input(false), t0 + ms(120)).is_none());
+        assert!(matches!(
+            state.on_grace_expired(),
+            Some(Effect::Stop { .. })
+        ));
+
+        // The tap's pipeline is still draining: the press is remembered, locked.
+        assert!(state.on_input(ptt_input(true), t0 + ms(350)).is_none());
+        assert!(state.on_input(ptt_input(false), t0 + ms(420)).is_none());
+        assert!(matches!(
+            state.on_processing_finished(),
+            Some(Effect::Start { .. })
+        ));
+        assert!(state.is_locked(), "double-tap must start hands-free");
+
+        // Releases no longer end it; the next press does.
+        assert!(state.on_input(ptt_input(false), t0 + ms(900)).is_none());
+        assert!(state.grace_deadline().is_none());
+        assert!(matches!(
+            state.on_input(ptt_input(true), t0 + ms(5000)),
+            Some(Effect::Stop { .. })
+        ));
+    }
+
+    /// Same, when the tap's pipeline has already drained.
+    #[test]
+    fn ptt_double_tap_from_idle_starts_hands_free() {
+        let mut state = CoordinatorState::new();
+        let t0 = Instant::now();
+        state.on_input(ptt_input(true), t0);
+        state.on_input(ptt_input(false), t0 + ms(100));
+        state.on_grace_expired();
+        assert!(state.on_processing_finished().is_none());
+
+        assert!(matches!(
+            state.on_input(ptt_input(true), t0 + ms(300)),
+            Some(Effect::Start { .. })
+        ));
+        assert!(state.is_locked());
+    }
+
+    /// Too slow, or the first press was a real hold: plain push-to-talk.
+    #[test]
+    fn ptt_slow_second_press_or_hold_is_not_double_tap() {
+        let mut state = CoordinatorState::new();
+        let t0 = Instant::now();
+        state.on_input(ptt_input(true), t0);
+        state.on_input(ptt_input(false), t0 + ms(100));
+        state.on_grace_expired();
+        state.on_processing_finished();
+        state.on_input(ptt_input(true), t0 + ms(700));
+        assert!(!state.is_locked(), "700 ms after a tap is a new press");
+
+        let mut state = CoordinatorState::new();
+        state.on_input(ptt_input(true), t0);
+        state.on_input(ptt_input(false), t0 + ms(2000));
+        state.on_grace_expired();
+        state.on_processing_finished();
+        state.on_input(ptt_input(true), t0 + ms(2200));
+        assert!(
+            !state.is_locked(),
+            "a quick press after a real hold is not a double-tap"
+        );
     }
 }

@@ -18,6 +18,8 @@ type WritingContext = "chat" | "to_ai" | "notes" | "other";
 interface ContextEvent {
   context: WritingContext;
   app: string;
+  /** Double-tap: the key no longer ends the recording, the next press does. */
+  hands_free: boolean;
 }
 
 const BARS = 13;
@@ -185,6 +187,7 @@ export const Capsule: React.FC<CapsuleProps> = ({
   const recording = state === "recording";
   const working = state === "transcribing" || state === "processing";
   const showTimer = recording && elapsed >= TIMER_AFTER_S;
+  const handsFree = recording && ctx?.hands_free === true;
   const showCtx = recording && intro && ctx !== null && ctx.app.length > 0;
 
   // Morph the width: measure the content, then spring the capsule to it.
@@ -196,7 +199,7 @@ export const Capsule: React.FC<CapsuleProps> = ({
     const width = shell.offsetWidth; // layout width, unaffected by transforms
     shell.style.width = "";
     cap.style.width = `${width}px`;
-  }, [state, showCtx, showTimer, polishing, ctx]);
+  }, [state, showCtx, showTimer, handsFree, polishing, ctx]);
 
   const classes = [
     "yy-cap",
@@ -234,6 +237,9 @@ export const Capsule: React.FC<CapsuleProps> = ({
                   <ContextIcon context={ctx.context} />
                   {ctx.app}
                 </span>
+              )}
+              {handsFree && !showCtx && (
+                <span className="yy-hands">{t("overlay.yuyin.handsFree")}</span>
               )}
               {showTimer && <span className="yy-timer">{fmt(elapsed)}</span>}
             </>

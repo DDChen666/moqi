@@ -75,11 +75,20 @@ fn with_session(f: impl FnOnce(&mut Session)) {
     }
 }
 
-/// Shown briefly in the capsule on key press.
+/// Set by the coordinator just before a recording starts: the key no longer
+/// ends it (double-tap hands-free); the next press does.
+static HANDS_FREE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+pub fn set_hands_free(on: bool) {
+    HANDS_FREE.store(on, Ordering::SeqCst);
+}
+
+/// Shown in the capsule on key press.
 #[derive(Clone, Serialize)]
 struct ContextEvent {
     context: Context,
     app: String,
+    hands_free: bool,
 }
 
 /// Key press (at `pressed`): remember where the user is typing.
@@ -93,6 +102,7 @@ pub fn begin(app: &AppHandle, pressed: Instant) {
     let event = ContextEvent {
         context,
         app: front.as_ref().map(display_name).unwrap_or_default(),
+        hands_free: HANDS_FREE.load(Ordering::SeqCst),
     };
     let _ = app.emit_to("recording_overlay", "yuyin-context", event);
     debug!(

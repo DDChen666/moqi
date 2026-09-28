@@ -1026,7 +1026,7 @@ pub fn run(cli_args: CliArgs) {
 
             // Yuyin fork: write our defaults into the settings store on first
             // launch, before anything reads them.
-            yuyin::defaults::apply_first_run(app.handle());
+            yuyin::defaults::apply(app.handle());
 
             let mut settings = get_settings(app.handle());
 

@@ -731,7 +731,8 @@
     "copied": "Copied — paste it yourself",
     "yuyin": {
       "polishing": "Tidying",
-      "fallback": "Clean-up didn't finish — pasted the raw text"
+      "fallback": "Clean-up didn't finish — pasted the raw text",
+      "handsFree": "Hands-free · press to finish"
     }
   },
   "secureInput": {

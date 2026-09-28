@@ -1,46 +1,51 @@
-//! The LLM API key lives in the macOS Keychain, never in a settings file or
-//! the repository (product definition, principle A). The frontend can set or
-//! clear it and ask whether one exists, but can never read it back.
+//! The LLM API key lives in the system keychain (macOS Keychain, Windows
+//! Credential Manager), never in a settings file or the repository (product
+//! definition, principle A). The frontend can set or clear it and ask whether
+//! one exists, but can never read it back.
+//!
+//! On macOS the entry is a generic password (service `tw.yuyin.dictation`,
+//! account `llm-api-key`), the same item the pre-1.0 builds wrote with
+//! security-framework, so an existing key keeps working.
 
 const SERVICE: &str = "tw.yuyin.dictation";
 const ACCOUNT: &str = "llm-api-key";
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", windows))]
 mod imp {
     use super::{ACCOUNT, SERVICE};
-    use security_framework::passwords::{
-        delete_generic_password, get_generic_password, set_generic_password,
-    };
+    use keyring::{Entry, Error};
+
+    fn entry() -> Result<Entry, String> {
+        Entry::new(SERVICE, ACCOUNT).map_err(|e| e.to_string())
+    }
 
     pub fn get() -> Option<String> {
-        let bytes = get_generic_password(SERVICE, ACCOUNT).ok()?;
-        String::from_utf8(bytes)
+        entry()
+            .ok()?
+            .get_password()
             .ok()
             .filter(|k| !k.trim().is_empty())
     }
 
     pub fn set(key: &str) -> Result<(), String> {
-        set_generic_password(SERVICE, ACCOUNT, key.trim().as_bytes()).map_err(|e| e.to_string())
+        entry()?.set_password(key.trim()).map_err(|e| e.to_string())
     }
 
     pub fn clear() -> Result<(), String> {
-        match delete_generic_password(SERVICE, ACCOUNT) {
-            Ok(()) => Ok(()),
-            // errSecItemNotFound: nothing to delete is fine.
-            Err(e) if e.code() == -25300 => Ok(()),
+        match entry()?.delete_credential() {
+            Ok(()) | Err(Error::NoEntry) => Ok(()),
             Err(e) => Err(e.to_string()),
         }
     }
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(any(target_os = "macos", windows)))]
 mod imp {
-    // M2 (Windows) will use the Credential Manager.
     pub fn get() -> Option<String> {
         None
     }
     pub fn set(_key: &str) -> Result<(), String> {
-        Err("API key storage is only implemented on macOS".into())
+        Err("API key storage is not implemented on this platform".into())
     }
     pub fn clear() -> Result<(), String> {
         Ok(())

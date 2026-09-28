@@ -173,6 +173,11 @@
   width: 13px;
   height: 13px;
 }
+/* Hands-free (double-tap): says why releasing the key did not stop it. */
+.yy-hands {
+  color: #8e8e93;
+  animation: yy-fade 0.5s both;
+}
 .yy-timer {
   color: #8e8e93;
   font-variant-numeric: tabular-nums;

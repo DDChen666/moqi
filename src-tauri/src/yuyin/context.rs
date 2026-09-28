@@ -21,6 +21,8 @@ pub enum Context {
 /// The app that had focus when the user pressed the shortcut.
 #[derive(Clone, Debug, Default)]
 pub struct FrontApp {
+    /// macOS: the bundle id (`jp.naver.line.mac`). Windows: the executable's
+    /// file name in lower case (`line.exe`). The lists below hold both.
     pub bundle_id: String,
     pub pid: i32,
     pub window_title: String,
@@ -37,6 +39,13 @@ const CHAT_APPS: &[&str] = &[
     "net.whatsapp.WhatsApp",
     "com.hnc.Discord",
     "com.tinyspeck.slackmacgap",
+    // Windows
+    "line.exe",
+    "messenger.exe",
+    "telegram.exe",
+    "whatsapp.exe",
+    "discord.exe",
+    "slack.exe",
 ];
 
 const AI_APPS: &[&str] = &[
@@ -49,9 +58,25 @@ const AI_APPS: &[&str] = &[
     "com.mitchellh.ghostty",
     "com.microsoft.VSCode",
     "com.todesktop.230313mzl4w4u92", // Cursor
+    // Windows
+    "claude.exe",
+    "chatgpt.exe",
+    "windowsterminal.exe",
+    "cmd.exe",
+    "powershell.exe",
+    "pwsh.exe",
+    "wezterm-gui.exe",
+    "code.exe",
+    "cursor.exe",
 ];
 
-const NOTES_APPS: &[&str] = &["com.apple.Notes", "md.obsidian"];
+const NOTES_APPS: &[&str] = &[
+    "com.apple.Notes",
+    "md.obsidian",
+    // Windows
+    "obsidian.exe",
+    "onenote.exe",
+];
 
 const BROWSERS: &[&str] = &[
     "com.google.Chrome",
@@ -60,6 +85,12 @@ const BROWSERS: &[&str] = &[
     "org.mozilla.firefox",
     "com.microsoft.edgemac",
     "com.brave.Browser",
+    // Windows
+    "chrome.exe",
+    "msedge.exe",
+    "firefox.exe",
+    "brave.exe",
+    "arc.exe",
 ];
 
 /// Web apps are identified by the tab title that browsers put in the window
@@ -170,6 +201,18 @@ mod tests {
         assert_eq!(classify(&app(chrome, "ChatGPT")), Context::ToAi);
         assert_eq!(classify(&app("com.apple.Safari", "Claude")), Context::ToAi);
         assert_eq!(classify(&app(chrome, "YouTube")), Context::Other);
+    }
+
+    #[test]
+    fn windows_executables() {
+        assert_eq!(classify(&app("line.exe", "")), Context::Chat);
+        assert_eq!(classify(&app("windowsterminal.exe", "")), Context::ToAi);
+        assert_eq!(classify(&app("obsidian.exe", "")), Context::Notes);
+        assert_eq!(
+            classify(&app("msedge.exe", "ChatGPT - Microsoft Edge")),
+            Context::ToAi
+        );
+        assert_eq!(classify(&app("notepad.exe", "")), Context::Other);
     }
 
     #[test]

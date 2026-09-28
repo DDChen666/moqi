@@ -728,7 +728,8 @@
     "copied": "已複製，請自己貼上",
     "yuyin": {
       "polishing": "整理中",
-      "fallback": "潤稿沒有完成，已貼上原文"
+      "fallback": "潤稿沒有完成，已貼上原文",
+      "handsFree": "免持・再按一下結束"
     }
   },
   "whatsNew": {

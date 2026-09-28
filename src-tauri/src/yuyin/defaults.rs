@@ -1,7 +1,10 @@
-//! Yuyin's defaults for Handy's own settings, applied once on first launch
-//! (before shortcuts are registered). Changing upstream's defaults in
-//! `settings.rs` would conflict with every upstream settings change, so we
-//! write the user's store instead.
+//! Yuyin's defaults for Handy's own settings, applied before shortcuts are
+//! registered. Changing upstream's defaults in `settings.rs` would conflict
+//! with every upstream settings change, so we write the user's store instead.
+//!
+//! - First launch: [`apply_first_run`].
+//! - A later release that changes a default existing installs should get too
+//!   bumps [`DEFAULTS_VERSION`] and adds a step to [`apply_upgrades`].
 
 use log::info;
 use tauri::AppHandle;
@@ -20,7 +23,17 @@ const TALK_KEY: &str = "option_right";
 const PREINSTALLED_MODEL_FILE: &str = "Qwen3-ASR-1.7B-Q5_K_M.gguf";
 const PREINSTALLED_MODEL_ID: &str = "handy-computer/Qwen3-ASR-1.7B-gguf/Qwen3-ASR-1.7B-Q5_K_M.gguf";
 
-pub fn apply_first_run(app: &AppHandle) {
+/// Bump when a release adds a step to [`apply_upgrades`].
+const DEFAULTS_VERSION: u32 = 1;
+const DEFAULTS_VERSION_FILE: &str = "yuyin_defaults_version";
+
+/// Everything, in order. Called once per launch.
+pub fn apply(app: &AppHandle) {
+    apply_first_run(app);
+    apply_upgrades(app);
+}
+
+fn apply_first_run(app: &AppHandle) {
     if !config::is_first_run(app) {
         return;
     }
@@ -53,4 +66,37 @@ pub fn apply_first_run(app: &AppHandle) {
         log::error!("Failed to write initial yuyin.json: {e}");
     }
     info!("Applied Yuyin first-run defaults");
+}
+
+fn version_file(app: &AppHandle) -> Option<std::path::PathBuf> {
+    crate::portable::app_data_dir(app)
+        .ok()
+        .map(|dir| dir.join(DEFAULTS_VERSION_FILE))
+}
+
+/// Defaults added after 0.1, applied once to installs that predate them
+/// (and right after the first-run defaults on a new install).
+fn apply_upgrades(app: &AppHandle) {
+    let Some(path) = version_file(app) else {
+        return;
+    };
+    let applied: u32 = std::fs::read_to_string(&path)
+        .ok()
+        .and_then(|s| s.trim().parse().ok())
+        .unwrap_or(0);
+    if applied >= DEFAULTS_VERSION {
+        return;
+    }
+    let mut s = settings::get_settings(app);
+    if applied < 1 {
+        // Criterion 6: restore the clipboard only after the target app has
+        // read the transcript, and mark it transient so clipboard managers
+        // (Maccy, Paste, Windows clipboard history) skip it.
+        s.reliable_paste = true;
+    }
+    settings::write_settings(app, s);
+    if let Err(e) = std::fs::write(&path, DEFAULTS_VERSION.to_string()) {
+        log::error!("Failed to record Yuyin defaults version: {e}");
+    }
+    info!("Applied Yuyin defaults {applied} -> {DEFAULTS_VERSION}");
 }
