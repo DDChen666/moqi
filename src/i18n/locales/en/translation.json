@@ -801,7 +801,7 @@
       "running": "Running…",
       "needKey": "Save an API key first."
     },
-    "privacy": "Only the recognized text is sent to the clean-up service. Your voice, app names and window titles stay on this Mac."
+    "privacy": "Only the recognized text and your dictionary words go to the clean-up service. Your voice, app names and window titles stay on this computer."
   },
   "moqi": {
     "nav": {
@@ -921,7 +921,7 @@
       "serviceDeepseek": "DeepSeek (recommended)",
       "serviceCustom": "Another OpenAI-compatible service",
       "serviceNone": "None (all local)",
-      "serviceNote": "Only the recognized text is sent. Which app you're in is judged on this computer; only a label like “style: chat” goes out.",
+      "serviceNote": "Only the recognized text and your dictionary words are sent. Which app you're in is judged on this computer; only a label like “style: chat” goes out.",
       "serviceNoteLocal": "All local: offline, no key needed. The level stays at “As spoken”.",
       "apiKey": "API key",
       "save": "Save",
@@ -963,7 +963,7 @@
       "rawPoint3": "Fastest: about 0.6 s after release",
       "recommended": "Recommended",
       "tidySummary": "Drops fillers, keeps your corrected version, formats for the app you're in.",
-      "tidyPoint1": "Only the recognized text is sent, never audio",
+      "tidyPoint1": "Only the recognized text and your dictionary are sent, never audio",
       "tidyPoint2": "Needs a DeepSeek API key (pay as you go)",
       "tidyPoint3": "About 1.5 s after release",
       "keyPlaceholder": "Paste your DeepSeek API key (sk-…)",

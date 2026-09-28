@@ -801,7 +801,7 @@
       "running": "處理中…",
       "needKey": "請先儲存 API key。"
     },
-    "privacy": "只有辨識出來的文字會送去潤稿服務。你的聲音、App 名稱和視窗標題都留在這台 Mac。"
+    "privacy": "送去潤稿服務的只有辨識出來的文字和你字典裡的詞。你的聲音、App 名稱和視窗標題都留在這台電腦。"
   },
   "moqi": {
     "nav": {
@@ -921,7 +921,7 @@
       "serviceDeepseek": "DeepSeek（推薦）",
       "serviceCustom": "其他相容 OpenAI 格式的服務",
       "serviceNone": "不使用（全程本機）",
-      "serviceNote": "只有辨識出的文字會送出。你在哪個 App 打字只在這台電腦上判斷，送出去的只有「風格：聊天」這類標籤。",
+      "serviceNote": "送出的只有辨識出的文字和你字典裡的詞。你在哪個 App 打字只在這台電腦上判斷，送出去的只有「風格：聊天」這類標籤。",
       "serviceNoteLocal": "全程本機：不連網，也不需要 key。潤飾程度固定為「原話」。",
       "apiKey": "API key",
       "save": "儲存",
@@ -963,7 +963,7 @@
       "rawPoint3": "最快，放開後約 0.6 秒",
       "recommended": "推薦",
       "tidySummary": "去掉贅字，改口只留最後的說法，依 App 調整格式。",
-      "tidyPoint1": "只有辨識出的文字會送出，聲音不會",
+      "tidyPoint1": "只送出辨識出的文字和你的字典，聲音不會",
       "tidyPoint2": "需要 DeepSeek 的 API key（按用量付費）",
       "tidyPoint3": "放開後約 1.5 秒",
       "keyPlaceholder": "貼上 DeepSeek API key（sk-…）",
