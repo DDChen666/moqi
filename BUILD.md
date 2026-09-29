@@ -35,7 +35,16 @@ sh scripts/signing_identity.sh "Moqi Dev"          # 第一次會建立憑證，
 APPLE_SIGNING_IDENTITY="Moqi Dev" bun run tauri build --bundles app
 ```
 
-產出在 `src-tauri/target/release/bundle/macos/Moqi.app`。要做安裝檔，把 `--bundles app` 換成 `--bundles app,dmg`。
+產出在 `src-tauri/target/release/bundle/macos/Moqi.app`。
+
+### 發佈用的安裝檔（維護者）
+
+```sh
+sh scripts/make_release_dmg.sh     # 用「Moqi Release」簽章，產出 dmg 並印出 SHA-256
+```
+
+- 公開版一律用同一張「Moqi Release」憑證簽章，用戶更新後權限才會保留。憑證的私鑰（`~/.config/moqi-signing/moqi-release/`）要另外備份。
+- 腳本不用 `tauri build --bundles dmg`：在 exFAT 等外接硬碟上編譯時，那樣做出的 App 權限只有擁有者能讀，用戶拖進「應用程式」後會從啟動台消失；它的視窗排版步驟也需要「控制 Finder」的權限。
 
 ### 為什麼要固定的簽章
 
