@@ -1246,6 +1246,8 @@ impl TranscriptionManager {
         // with INVALID_ARG, so the whisper extension must be gated on the
         // arch, not on the feature (see #1601).
         let mut model_is_whisper = false;
+        // Yuyin fork: Qwen3-ASR takes the dictionary as recognition context.
+        let mut model_is_qwen3 = false;
 
         // Perform transcription with the appropriate engine.
         // We use catch_unwind to prevent engine panics from poisoning the mutex,
@@ -1287,6 +1289,7 @@ impl TranscriptionManager {
                 let caps = model.capabilities();
                 model_takes_initial_prompt = model.supports(Feature::InitialPrompt);
                 model_is_whisper = model.arch() == "whisper";
+                model_is_qwen3 = model.arch() == "qwen3_asr";
                 model_supports_translate = caps.supports_translate;
                 model_languages = caps.languages;
                 debug!(
@@ -1330,14 +1333,19 @@ impl TranscriptionManager {
                             language: run_plan.language,
                             target_language: run_plan.target_language,
                             family,
+                            // Yuyin fork: dictionary words as recognition context.
+                            context: model_is_qwen3
+                                .then(|| crate::yuyin::asr_context::context(&self.app_handle))
+                                .flatten(),
                             ..Default::default()
                         };
 
                         debug!(
-                            "transcribe-cpp run: task={:?}, language={:?}, initial_prompt={}",
+                            "transcribe-cpp run: task={:?}, language={:?}, initial_prompt={}, context_words={}",
                             run_options.task,
                             run_options.language,
-                            run_options.family.is_some()
+                            run_options.family.is_some(),
+                            run_options.context.as_ref().map_or(0, |c| c.split('、').count())
                         );
 
                         session

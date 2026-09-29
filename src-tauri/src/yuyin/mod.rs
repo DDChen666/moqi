@@ -15,6 +15,7 @@
 //!    still safe; if the user switched windows we copy instead.
 
 pub mod app_menu;
+pub mod asr_context;
 pub mod chunker;
 pub mod commands;
 pub mod config;

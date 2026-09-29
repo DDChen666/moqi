@@ -1,0 +1,231 @@
+Moqi patch for transcribe-cpp 0.2.4 / transcribe-cpp-sys 0.2.4: recognition
+context for Qwen3-ASR (dictionary words go into the model's system turn).
+Ported from handy-computer/transcribe.cpp PR #144 (closed; upstream design
+discussion continues in issue #70). Drop this patch once upstream ships it.
+Applied by scripts/vendor_transcribe_cpp.py into src-tauri/vendor/.
+
+diff -ruN a/transcribe-cpp/src/session.rs b/transcribe-cpp/src/session.rs
+--- a/transcribe-cpp/src/session.rs
++++ b/transcribe-cpp/src/session.rs
+@@ -43,6 +43,10 @@
+     pub spec_k_drafts: i32,
+     /// Optional family-specific run extension (e.g. whisper decode knobs).
+     pub family: Option<RunExtension>,
++    /// Background text that biases recognition toward names and jargon (a
++    /// word list works). Qwen3-ASR only; other families ignore it.
++    /// (Moqi patch, after transcribe.cpp PR #144.)
++    pub context: Option<String>,
+ }
+ 
+ impl Default for RunOptions {
+@@ -58,6 +62,7 @@
+             keep_special_tags: false,
+             spec_k_drafts: -1,
+             family: None,
++            context: None,
+         }
+     }
+ }
+@@ -148,7 +153,7 @@
+     /// On an aborted or truncated decode the partial transcript is preserved
+     /// on the returned [`Error::Aborted`] / [`Error::OutputTruncated`].
+     pub fn run(&mut self, pcm: &[f32], options: &RunOptions) -> Result<Transcript> {
+-        let (params, _lang, _target, _family) = build_run_params(options)?;
++        let (params, _lang, _target, _family, _context) = build_run_params(options)?;
+         let n = clamp_len(pcm.len())?;
+ 
+         // The compute path is serialized per model; hold the lock for the native
+@@ -191,7 +196,7 @@
+         pcms: &[&[f32]],
+         options: &RunOptions,
+     ) -> Result<Vec<Result<Transcript>>> {
+-        let (params, _lang, _target, _family) = build_run_params(options)?;
++        let (params, _lang, _target, _family, _context) = build_run_params(options)?;
+         let ptrs: Vec<*const f32> = pcms.iter().map(|p| p.as_ptr()).collect();
+         let lens: Vec<i32> = pcms
+             .iter()
+@@ -267,7 +272,7 @@
+     /// Dropping the returned `Stream` abandons it and returns the session to
+     /// idle.
+     pub fn stream(&mut self, run: &RunOptions, stream: &StreamOptions) -> Result<Stream<'_>> {
+-        let (run_params, _lang, _target, _family) = build_run_params(run)?;
++        let (run_params, _lang, _target, _family, _context) = build_run_params(run)?;
+         let (stream_params, _stream_family) = build_stream_params(stream);
+         {
+             // Claim the model's compute lease for the whole stream lifetime: a
+@@ -423,6 +428,7 @@
+     Option<CString>,
+     Option<CString>,
+     Option<RunExtRaw>,
++    Option<CString>,
+ );
+ 
+ /// Build `transcribe_run_params` from options. The returned keepalives own the
+@@ -452,7 +458,10 @@
+         .transpose()?;
+     params.family = family.as_ref().map_or(std::ptr::null(), |f| f.ext_ptr());
+ 
+-    Ok((params, lang, target, family))
++    let context = o.context.as_deref().filter(|c| !c.is_empty()).map(CString::new).transpose()?;
++    params.context = context.as_ref().map_or(std::ptr::null(), |c| c.as_ptr());
++
++    Ok((params, lang, target, family, context))
+ }
+ 
+ /// PCM/utterance lengths cross the ABI as `int`; reject anything that overflows.
+diff -ruN a/transcribe-cpp-sys/bindings/rust/sys/src/transcribe_sys.rs b/transcribe-cpp-sys/bindings/rust/sys/src/transcribe_sys.rs
+--- a/transcribe-cpp-sys/bindings/rust/sys/src/transcribe_sys.rs
++++ b/transcribe-cpp-sys/bindings/rust/sys/src/transcribe_sys.rs
+@@ -346,10 +346,11 @@
+     pub keep_special_tags: bool,
+     pub family: *const transcribe_ext,
+     pub spec_k_drafts: i32,
++    pub context: *const ::std::os::raw::c_char,
+ }
+ #[allow(clippy::unnecessary_operation, clippy::identity_op)]
+ const _: () = {
+-    ["Size of transcribe_run_params"][::std::mem::size_of::<transcribe_run_params>() - 72usize];
++    ["Size of transcribe_run_params"][::std::mem::size_of::<transcribe_run_params>() - 80usize];
+     ["Alignment of transcribe_run_params"]
+         [::std::mem::align_of::<transcribe_run_params>() - 8usize];
+     ["Offset of field: transcribe_run_params::struct_size"]
+@@ -374,6 +375,8 @@
+         [::std::mem::offset_of!(transcribe_run_params, family) - 56usize];
+     ["Offset of field: transcribe_run_params::spec_k_drafts"]
+         [::std::mem::offset_of!(transcribe_run_params, spec_k_drafts) - 64usize];
++    ["Offset of field: transcribe_run_params::context"]
++        [::std::mem::offset_of!(transcribe_run_params, context) - 72usize];
+ };
+ unsafe extern "C" {
+     pub fn transcribe_run_params_init(params: *mut transcribe_run_params);
+diff -ruN a/transcribe-cpp-sys/include/transcribe.h b/transcribe-cpp-sys/include/transcribe.h
+--- a/transcribe-cpp-sys/include/transcribe.h
++++ b/transcribe-cpp-sys/include/transcribe.h
+@@ -1118,6 +1118,17 @@
+      *   to know whether the field will take effect.
+      */
+     int32_t spec_k_drafts;
++
++    /*
++     * context: optional UTF-8 background text that biases recognition toward
++     *   names and jargon (a plain word list works). NULL or "" means none.
++     *   Today only qwen3_asr reads it, into its system turn; other families
++     *   ignore it. It is not an instruction prompt. Caller-owned; the library
++     *   is done with it when the call returns.
++     *   (Moqi patch, after transcribe.cpp PR #144 — drop when upstream ships
++     *   recognition context, see issue #70.)
++     */
++    const char * context;
+ };
+ 
+ TRANSCRIBE_API void transcribe_run_params_init(struct transcribe_run_params * params);
+diff -ruN a/transcribe-cpp-sys/src/arch/qwen3_asr/model.cpp b/transcribe-cpp-sys/src/arch/qwen3_asr/model.cpp
+--- a/transcribe-cpp-sys/src/arch/qwen3_asr/model.cpp
++++ b/transcribe-cpp-sys/src/arch/qwen3_asr/model.cpp
+@@ -21,6 +21,7 @@
+ #include "weights.h"
+ 
+ #include <algorithm>
++#include <cstddef>
+ #include <cmath>
+ #include <cstdint>
+ #include <cstdio>
+@@ -356,19 +357,37 @@
+     return TRANSCRIBE_OK;
+ }
+ 
++// Recognition context (Moqi patch, after PR #144): background text such as a
++// word list, tokenized as plain text into the system turn. Read only when the
++// caller's struct is new enough to carry the field; any encode failure just
++// means no context.
++std::vector<int32_t> context_tokens(const transcribe::Tokenizer & tok, const transcribe_run_params * params) {
++    std::vector<int32_t> ids;
++    if (params == nullptr ||
++        params->struct_size < offsetof(transcribe_run_params, context) + sizeof(params->context) ||
++        params->context == nullptr || params->context[0] == '\0') {
++        return ids;
++    }
++    if (tok.encode(params->context, ids) != TRANSCRIBE_OK) {
++        ids.clear();
++    }
++    return ids;
++}
++
+ // Build the prompt token sequence + audio-position list, mirroring the
+ // Qwen3-ASR chat template at the token level:
+ //
+-//   <|im_start|>system\n<|im_end|>\n
++//   <|im_start|>system\n[context]?<|im_end|>\n
+ //   <|im_start|>user\n<|audio_start|><|audio_pad|>*T_enc<|audio_end|><|im_end|>\n
+ //   <|im_start|>assistant\n[language {Name}<asr_text>]?
+ //
+-// System prompt is empty. A non-null `lang_prefix_ids` (resolved via
++// The system turn holds the recognition context, if any. A non-null `lang_prefix_ids` (resolved via
+ // encode_language_prefix) is appended after the trailing newline to force an
+ // output language; kept out of here so this stays a pure token-id assembler.
+ void build_prompt_tokens(const QwenAsrHParams &       hp,
+                          const ChatTokens &           ct,
+                          int                          T_enc,
++                         const std::vector<int32_t> * context_ids,
+                          const std::vector<int32_t> * lang_prefix_ids,
+                          std::vector<int32_t> &       out_ids,
+                          std::vector<int64_t> &       out_audio_positions) {
+@@ -378,6 +397,9 @@
+     out_ids.push_back(ct.im_start);
+     out_ids.push_back(ct.role_system);
+     out_ids.push_back(ct.newline);
++    if (context_ids != nullptr && !context_ids->empty()) {
++        out_ids.insert(out_ids.end(), context_ids->begin(), context_ids->end());
++    }
+     out_ids.push_back(ct.im_end);
+     out_ids.push_back(ct.newline);
+ 
+@@ -558,6 +580,7 @@
+         }
+         lang_prefix_ptr = &lang_prefix_ids;
+     }
++    const std::vector<int32_t> context_ids = context_tokens(cm->tok, params);
+ 
+     transcribe::debug::init();
+ 
+@@ -720,7 +743,8 @@
+     // Prompt construction.
+     std::vector<int32_t> prompt_ids;
+     std::vector<int64_t> audio_positions;
+-    build_prompt_tokens(cm->hparams, cm->chat_tokens, T_enc, lang_prefix_ptr, prompt_ids, audio_positions);
++    build_prompt_tokens(cm->hparams, cm->chat_tokens, T_enc, context_ids.empty() ? nullptr : &context_ids,
++                        lang_prefix_ptr, prompt_ids, audio_positions);
+     const int T_prompt   = static_cast<int>(prompt_ids.size());
+     const int prefix_len = audio_positions.empty() ? 0 : static_cast<int>(audio_positions.front());
+     const int suffix_len = T_prompt - prefix_len - T_enc;
+@@ -1526,6 +1550,7 @@
+         }
+         lang_prefix_ptr = &lang_prefix_ids;
+     }
++    const std::vector<int32_t> context_ids = context_tokens(cm->tok, params);
+ 
+     // Pass 1: per-utterance encoder + prefill into KV slabs.
+     std::vector<std::vector<int32_t>> generated(n);
+@@ -1562,7 +1587,8 @@
+             continue;
+         }
+         std::vector<int64_t> ap;
+-        build_prompt_tokens(cm->hparams, cm->chat_tokens, T_enc[b], lang_prefix_ptr, prompt_ids[b], ap);
++        build_prompt_tokens(cm->hparams, cm->chat_tokens, T_enc[b], context_ids.empty() ? nullptr : &context_ids,
++                            lang_prefix_ptr, prompt_ids[b], ap);
+         T_prompt[b] = static_cast<int>(prompt_ids[b].size());
+         prefix_len  = ap.empty() ? 0 : static_cast<int>(ap.front());
+         // Same gate as single-shot run(); the rest of the batch still runs.
+diff -ruN a/transcribe-cpp-sys/src/transcribe.cpp b/transcribe-cpp-sys/src/transcribe.cpp
+--- a/transcribe-cpp-sys/src/transcribe.cpp
++++ b/transcribe-cpp-sys/src/transcribe.cpp
+@@ -1856,6 +1856,9 @@
+     run_params_owned.target_language =
+         run_params->target_language != nullptr ? session->stream_target_language_owned.c_str() : nullptr;
+     run_params_owned.family = nullptr;
++    // Moqi patch: no streaming family reads recognition context; don't keep
++    // a pointer the caller may free once begin returns.
++    run_params_owned.context = nullptr;
+ 
+     const transcribe_status st = session->model->arch->stream_begin(session, &run_params_owned, stream_params);
+     if (st != TRANSCRIBE_OK) {

@@ -193,6 +193,11 @@ transcribe-cpp = { version = "0.2.4", default-features = false, features = [
 [patch.crates-io]
 tao = { git = "https://github.com/cjpais/tao", rev = "c3bee28c1d446d95f08c95c3b6f8d4bde052b876" }
 tao-macros = { git = "https://github.com/cjpais/tao", rev = "c3bee28c1d446d95f08c95c3b6f8d4bde052b876" }
+# Yuyin fork: the speech engine with recognition context for Qwen3-ASR
+# (dictionary words in the model's system turn; patches/ explains). Run
+# `python3 scripts/vendor_transcribe_cpp.py` once before building.
+transcribe-cpp = { path = "vendor/transcribe-cpp" }
+transcribe-cpp-sys = { path = "vendor/transcribe-cpp-sys" }
 
 [dev-dependencies]
 tempfile = "3"

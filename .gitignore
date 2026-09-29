@@ -45,3 +45,6 @@ result
 
 # Python bytecode (scripts/)
 __pycache__/
+
+# Patched speech engine, made by scripts/vendor_transcribe_cpp.py
+src-tauri/vendor/
