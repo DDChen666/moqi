@@ -98,6 +98,16 @@ fn build_console_filter() -> env_filter::Filter {
 
 fn show_main_window(app: &AppHandle) {
     if let Some(main_window) = app.get_webview_window("main") {
+        // Yuyin fork: become a Regular app *before* raising the window, then
+        // activate. Focusing while still an Accessory made the app active as a
+        // menu bar app; the later promotion then left it with no Dock icon,
+        // and a Spotlight launch could leave the window behind others.
+        #[cfg(target_os = "macos")]
+        {
+            if let Err(e) = app.set_activation_policy(tauri::ActivationPolicy::Regular) {
+                log::error!("Failed to set activation policy to Regular: {}", e);
+            }
+        }
         if let Err(e) = main_window.unminimize() {
             log::error!("Failed to unminimize webview window: {}", e);
         }
@@ -108,11 +118,7 @@ fn show_main_window(app: &AppHandle) {
             log::error!("Failed to focus webview window: {}", e);
         }
         #[cfg(target_os = "macos")]
-        {
-            if let Err(e) = app.set_activation_policy(tauri::ActivationPolicy::Regular) {
-                log::error!("Failed to set activation policy to Regular: {}", e);
-            }
-        }
+        activate_app(app);
         return;
     }
 
@@ -121,6 +127,22 @@ fn show_main_window(app: &AppHandle) {
         "Main window not found. Webview labels: {:?}",
         webview_labels
     );
+}
+
+/// Yuyin fork: bring the whole app forward, not just the window. Queued on the
+/// main thread after the policy change and `set_focus`, so it runs once the
+/// app is Regular and the Dock picks the icon up.
+#[cfg(target_os = "macos")]
+fn activate_app(app: &AppHandle) {
+    let res = app.run_on_main_thread(|| {
+        if let Some(mtm) = objc2::MainThreadMarker::new() {
+            #[allow(deprecated)] // `activate()` needs macOS 14; we support 10.15
+            objc2_app_kit::NSApplication::sharedApplication(mtm).activateIgnoringOtherApps(true);
+        }
+    });
+    if let Err(e) = res {
+        log::error!("Failed to activate app: {}", e);
+    }
 }
 
 /// Choose the macOS activation policy the process *launches* with.

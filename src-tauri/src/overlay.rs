@@ -450,6 +450,18 @@ pub fn create_recording_overlay(app_handle: &AppHandle) {
 /// Creates the recording overlay panel and keeps it hidden by default (macOS)
 #[cfg(target_os = "macos")]
 pub fn create_recording_overlay(app_handle: &AppHandle) {
+    // Yuyin fork: `no_activate` flips the app to Prohibited and back while the
+    // panel is built. For a Regular (Dock) launch that round trip leaves
+    // macOS 26 with a zero-width Dock tile and the app deactivated, so the
+    // main window opens behind other windows. Only a hidden (Accessory)
+    // launch needs it, to avoid stealing focus at login.
+    let launching_regular = objc2::MainThreadMarker::new()
+        .map(|mtm| {
+            objc2_app_kit::NSApplication::sharedApplication(mtm).activationPolicy()
+                == objc2_app_kit::NSApplicationActivationPolicy::Regular
+        })
+        .unwrap_or(false);
+    log::info!("Creating recording overlay (regular launch: {launching_regular})");
     if let Some((x, y)) = calculate_overlay_position(app_handle, OVERLAY_WIDTH, OVERLAY_HEIGHT) {
         // PanelBuilder creates a Tauri window then converts it to NSPanel.
         // The window remains registered, so get_webview_window() still works.
@@ -464,7 +476,7 @@ pub fn create_recording_overlay(app_handle: &AppHandle) {
             }))
             .has_shadow(false)
             .transparent(true)
-            .no_activate(true)
+            .no_activate(!launching_regular)
             .corner_radius(0.0)
             .style_mask(StyleMask::empty().borderless().nonactivating_panel())
             .with_window(|w| w.decorations(false).transparent(true).focusable(false))
