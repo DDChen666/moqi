@@ -7,6 +7,8 @@
 //! account `llm-api-key`), the same item the pre-1.0 builds wrote with
 //! security-framework, so an existing key keeps working.
 
+use std::sync::Mutex;
+
 const SERVICE: &str = "tw.yuyin.dictation";
 const ACCOUNT: &str = "llm-api-key";
 
@@ -52,17 +54,38 @@ mod imp {
     }
 }
 
+/// The key as last read from or written to the keychain; `None` until the
+/// first read. Without a Team ID, macOS asks for the login password once per
+/// new build before handing the key over. Reading it at launch (`warm`) puts
+/// that prompt there: read on a key press, the password field's secure input
+/// swallowed the talk key's release and the recording never stopped.
+static CACHE: Mutex<Option<Option<String>>> = Mutex::new(None);
+
+/// Read the key once in the background so any keychain prompt shows at launch.
+pub fn warm() {
+    std::thread::spawn(|| {
+        let _ = api_key();
+    });
+}
+
 pub fn api_key() -> Option<String> {
-    imp::get()
+    let mut cache = CACHE.lock().unwrap_or_else(|e| e.into_inner());
+    cache.get_or_insert_with(imp::get).clone()
 }
 
 pub fn has_api_key() -> bool {
-    imp::get().is_some()
+    api_key().is_some()
 }
 
 pub fn set_api_key(key: &str) -> Result<(), String> {
-    if key.trim().is_empty() {
-        return imp::clear();
+    let mut cache = CACHE.lock().unwrap_or_else(|e| e.into_inner());
+    let key = key.trim();
+    if key.is_empty() {
+        imp::clear()?;
+        *cache = Some(None);
+    } else {
+        imp::set(key)?;
+        *cache = Some(Some(key.to_string()));
     }
-    imp::set(key)
+    Ok(())
 }

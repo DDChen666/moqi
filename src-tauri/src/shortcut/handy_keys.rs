@@ -132,6 +132,12 @@ impl HandyKeysState {
                         binding_id, hotkey_string, event.state
                     );
                     let is_pressed = event.state == HotkeyState::Pressed;
+                    // Yuyin fork: Esc with the talk key still held is the same cancel.
+                    let binding_id = if binding_id == CANCEL_HELD_ID {
+                        "cancel"
+                    } else {
+                        binding_id.as_str()
+                    };
                     handle_shortcut_event(&app, binding_id, hotkey_string, is_pressed);
                 }
             }
@@ -457,6 +463,34 @@ pub fn init_shortcuts(app: &AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// Yuyin fork: binding id for the cancel key pressed while a modifier-only
+/// talk key (right Option by default) is still held. handy-keys matches
+/// modifiers exactly, so plain Escape never fires while Option is down and
+/// Esc could not cancel a hold-to-talk recording.
+const CANCEL_HELD_ID: &str = "cancel_held";
+
+/// The talk key's modifiers plus the cancel key, e.g. `option_right+escape`.
+/// None when the talk key is not modifier-only or cancel already has
+/// modifiers of its own.
+fn cancel_held_binding(
+    settings: &settings::AppSettings,
+    cancel: &ShortcutBinding,
+) -> Option<ShortcutBinding> {
+    let talk = settings.bindings.get("transcribe")?;
+    let talk_hotkey: Hotkey = talk.current_binding.parse().ok()?;
+    let cancel_hotkey: Hotkey = cancel.current_binding.parse().ok()?;
+    if talk_hotkey.key.is_some() || talk_hotkey.modifiers.is_empty() {
+        return None;
+    }
+    if !cancel_hotkey.modifiers.is_empty() || cancel_hotkey.key.is_none() {
+        return None;
+    }
+    let mut held = cancel.clone();
+    held.id = CANCEL_HELD_ID.to_string();
+    held.current_binding = format!("{}+{}", talk.current_binding, cancel.current_binding);
+    Some(held)
+}
+
 /// Register the cancel shortcut (called when recording starts)
 pub fn register_cancel_shortcut(app: &AppHandle) {
     // Disabled on Linux due to instability
@@ -470,10 +504,16 @@ pub fn register_cancel_shortcut(app: &AppHandle) {
     {
         let app_clone = app.clone();
         tauri::async_runtime::spawn(async move {
-            if let Some(cancel_binding) = get_settings(&app_clone).bindings.get("cancel").cloned() {
+            let settings = get_settings(&app_clone);
+            if let Some(cancel_binding) = settings.bindings.get("cancel").cloned() {
                 if let Some(state) = app_clone.try_state::<HandyKeysState>() {
                     if let Err(e) = state.register(&cancel_binding) {
                         error!("Failed to register cancel shortcut: {}", e);
+                    }
+                    if let Some(held) = cancel_held_binding(&settings, &cancel_binding) {
+                        if let Err(e) = state.register(&held) {
+                            error!("Failed to register held cancel shortcut: {}", e);
+                        }
                     }
                 }
             }
@@ -496,6 +536,10 @@ pub fn unregister_cancel_shortcut(app: &AppHandle) {
             if let Some(cancel_binding) = get_settings(&app_clone).bindings.get("cancel").cloned() {
                 if let Some(state) = app_clone.try_state::<HandyKeysState>() {
                     let _ = state.unregister(&cancel_binding);
+                    let mut held = cancel_binding;
+                    held.id = CANCEL_HELD_ID.to_string();
+                    // Unregister is by id and a no-op when it was never registered.
+                    let _ = state.unregister(&held);
                 }
             }
         });
@@ -571,4 +615,43 @@ pub fn stop_handy_keys_recording(app: AppHandle) -> Result<(), String> {
     let result = state.stop_recording();
     super::resume_all_shortcuts(&app);
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use handy_keys::{Key, Modifiers};
+
+    #[test]
+    fn esc_with_right_option_held_is_a_cancel() {
+        let mut settings = settings::get_default_settings();
+        settings
+            .bindings
+            .get_mut("transcribe")
+            .unwrap()
+            .current_binding = "option_right".into();
+        let cancel = settings.bindings.get("cancel").cloned().unwrap();
+        let held = cancel_held_binding(&settings, &cancel).expect("modifier-only talk key");
+        assert_eq!(held.id, CANCEL_HELD_ID);
+
+        // What a real keyboard reports: Esc down while right Option is down.
+        let hotkey: Hotkey = held.current_binding.parse().unwrap();
+        assert!(hotkey.modifiers.matches(Modifiers::OPT_RIGHT));
+        assert_eq!(hotkey.key, Some(Key::Escape));
+        // The plain binding alone can't match that event.
+        let plain: Hotkey = cancel.current_binding.parse().unwrap();
+        assert!(!plain.modifiers.matches(Modifiers::OPT_RIGHT));
+    }
+
+    #[test]
+    fn no_held_cancel_for_a_keyed_talk_hotkey() {
+        let mut settings = settings::get_default_settings();
+        settings
+            .bindings
+            .get_mut("transcribe")
+            .unwrap()
+            .current_binding = "fn+f5".into();
+        let cancel = settings.bindings.get("cancel").cloned().unwrap();
+        assert!(cancel_held_binding(&settings, &cancel).is_none());
+    }
 }
