@@ -1,5 +1,5 @@
 {
-  "name": "handy-app",
+  "name": "moqi",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -18,8 +18,7 @@
     "test:playwright": "playwright test",
     "test:playwright:ui": "playwright test --ui",
     "check:translations": "bun scripts/check-translations.ts",
-    "check:model-languages": "bun scripts/check-model-language-coverage.ts",
-    "postinstall": "bun scripts/check-nix-deps.ts"
+    "check:model-languages": "bun scripts/check-model-language-coverage.ts"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.16",
@@ -64,5 +63,11 @@
     "prettier": "^3.6.2",
     "typescript": "~5.6.3",
     "vite": "^6.4.1"
-  }
+  },
+  "description": "默契 Moqi — local-first Mandarin/English dictation for macOS",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DDChen666/moqi"
+  },
+  "license": "MIT"
 }

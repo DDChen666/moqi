@@ -1,5 +1,5 @@
 <!doctype html>
-<meta charset="utf-8">
+<meta charset="utf-8" />
 <title>Yuyin brand renderer</title>
 <!--
   Renders every Yuyin bitmap (app icon, tray icons) from the same vector
@@ -10,21 +10,27 @@
 -->
 <pre id="out"></pre>
 <script>
-// Squircle (superellipse n = 5) on the macOS icon grid: 824 px body in a 1024 canvas.
-function squircle(c = 512, a = 412, n = 5, steps = 240) {
-  const p = [];
-  for (let i = 0; i < steps; i++) {
-    const t = (i / steps) * Math.PI * 2, ct = Math.cos(t), st = Math.sin(t);
-    p.push((c + a * Math.sign(ct) * Math.abs(ct) ** (2 / n)).toFixed(2) + " " +
-           (c + a * Math.sign(st) * Math.abs(st) ** (2 / n)).toFixed(2));
+  // Squircle (superellipse n = 5) on the macOS icon grid: 824 px body in a 1024 canvas.
+  function squircle(c = 512, a = 412, n = 5, steps = 240) {
+    const p = [];
+    for (let i = 0; i < steps; i++) {
+      const t = (i / steps) * Math.PI * 2,
+        ct = Math.cos(t),
+        st = Math.sin(t);
+      p.push(
+        (c + a * Math.sign(ct) * Math.abs(ct) ** (2 / n)).toFixed(2) +
+          " " +
+          (c + a * Math.sign(st) * Math.abs(st) ** (2 / n)).toFixed(2),
+      );
+    }
+    return "M" + p.join("L") + "Z";
   }
-  return "M" + p.join("L") + "Z";
-}
-const SQ = squircle();
-// The glyph: a voice wave that calms into a line and stops at the caret.
-const WAVE = "M250 512 C 282 382, 338 382, 370 512 C 400 636, 458 636, 488 512 C 512 432, 560 432, 584 512 C 602 566, 630 566, 646 512 L 688 512";
+  const SQ = squircle();
+  // The glyph: a voice wave that calms into a line and stops at the caret.
+  const WAVE =
+    "M250 512 C 282 382, 338 382, 370 512 C 400 636, 458 636, 488 512 C 512 432, 560 432, 584 512 C 602 566, 630 566, 646 512 L 688 512";
 
-const obsidian = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  const obsidian = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a3a3f"/><stop offset="0.42" stop-color="#18181b"/><stop offset="1" stop-color="#060607"/></linearGradient>
     <radialGradient id="light" cx="0.5" cy="0.08" r="0.7"><stop offset="0" stop-color="#fff" stop-opacity="0.2"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
@@ -43,51 +49,55 @@ const obsidian = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024
   <path d="${SQ}" fill="none" stroke="url(#rim)" stroke-width="4"/>
 </svg>`;
 
-// Menu bar glyph (18 pt grid), drawn into a 64 px square like Handy's tray PNGs.
-function glyph(color, { opacity = 1, dot = null } = {}) {
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18" width="64" height="64">
+  // Menu bar glyph (18 pt grid), drawn into a 64 px square like Handy's tray PNGs.
+  function glyph(color, { opacity = 1, dot = null } = {}) {
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18" width="64" height="64">
     <g opacity="${opacity}">
       <path d="M1.6 9 C2.3 5.8,3.6 5.8,4.3 9 C5 12,6.3 12,7 9 C7.5 7.2,8.5 7.2,9 9 C9.4 10.2,10 10.2,10.4 9 L11.6 9" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
       <rect x="13.6" y="4" width="1.6" height="10" rx="0.8" fill="${color}"/>
     </g>
     ${dot ? `<circle cx="15.6" cy="3" r="2.2" fill="${dot}"/>` : ""}
   </svg>`;
-}
-const WHITE = "#ffffff", BLACK = "#000000", RED = "#ff453a", AMBER = "#ff9f0a";
+  }
+  const WHITE = "#ffffff",
+    BLACK = "#000000",
+    RED = "#ff453a",
+    AMBER = "#ff9f0a";
 
-const JOBS = {
-  "app-icon-1024.png": [obsidian, 1024],
-  // Dark menu bar → white glyph; light menu bar → black glyph ("_dark" = for light bars, upstream naming).
-  "tray_idle.png": [glyph(WHITE), 64],
-  "tray_idle_dark.png": [glyph(BLACK), 64],
-  "tray_recording.png": [glyph(RED), 64],
-  "tray_recording_dark.png": [glyph(RED), 64],
-  "tray_transcribing.png": [glyph(WHITE, { opacity: 0.45 }), 64],
-  "tray_transcribing_dark.png": [glyph(BLACK, { opacity: 0.45 }), 64],
-  "tray_idle_warning.png": [glyph(WHITE, { dot: AMBER }), 64],
-  "tray_idle_warning_dark.png": [glyph(BLACK, { dot: AMBER }), 64],
-  // "Colored" tray theme (Linux): the app icon itself.
-  "handy.png": [obsidian, 64],
-  "recording.png": [glyph(RED), 64],
-  "transcribing.png": [glyph("#8e8e93"), 64],
-  "handy_warning.png": [glyph("#8e8e93", { dot: AMBER }), 64],
-};
+  const JOBS = {
+    "app-icon-1024.png": [obsidian, 1024],
+    // Dark menu bar → white glyph; light menu bar → black glyph ("_dark" = for light bars, upstream naming).
+    "tray_idle.png": [glyph(WHITE), 64],
+    "tray_idle_dark.png": [glyph(BLACK), 64],
+    "tray_recording.png": [glyph(RED), 64],
+    "tray_recording_dark.png": [glyph(RED), 64],
+    "tray_transcribing.png": [glyph(WHITE, { opacity: 0.45 }), 64],
+    "tray_transcribing_dark.png": [glyph(BLACK, { opacity: 0.45 }), 64],
+    "tray_idle_warning.png": [glyph(WHITE, { dot: AMBER }), 64],
+    "tray_idle_warning_dark.png": [glyph(BLACK, { dot: AMBER }), 64],
+    // "Colored" tray theme (Linux): the app icon itself.
+    "handy.png": [obsidian, 64],
+    "recording.png": [glyph(RED), 64],
+    "transcribing.png": [glyph("#8e8e93"), 64],
+    "handy_warning.png": [glyph("#8e8e93", { dot: AMBER }), 64],
+  };
 
-async function render(svg, size) {
-  const img = new Image();
-  img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
-  await img.decode();
-  const c = document.createElement("canvas");
-  c.width = c.height = size;
-  const g = c.getContext("2d");
-  g.imageSmoothingQuality = "high";
-  g.drawImage(img, 0, 0, size, size);
-  return c.toDataURL("image/png");
-}
+  async function render(svg, size) {
+    const img = new Image();
+    img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+    await img.decode();
+    const c = document.createElement("canvas");
+    c.width = c.height = size;
+    const g = c.getContext("2d");
+    g.imageSmoothingQuality = "high";
+    g.drawImage(img, 0, 0, size, size);
+    return c.toDataURL("image/png");
+  }
 
-(async () => {
-  const out = {};
-  for (const [name, [svg, size]] of Object.entries(JOBS)) out[name] = await render(svg, size);
-  document.getElementById("out").textContent = JSON.stringify(out);
-})();
+  (async () => {
+    const out = {};
+    for (const [name, [svg, size]] of Object.entries(JOBS))
+      out[name] = await render(svg, size);
+    document.getElementById("out").textContent = JSON.stringify(out);
+  })();
 </script>
