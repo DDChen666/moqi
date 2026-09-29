@@ -903,6 +903,10 @@ impl ShortcutAction for TranscribeAction {
                                     // pressing the key, copy instead of pasting into
                                     // the wrong place (criterion 7).
                                     let copy_only = crate::yuyin::session::focus_changed();
+                                    // Yuyin fork: kept for the 1.1 field probe (runs only
+                                    // where its marker file exists; stores no text).
+                                    let probe_text = final_text.clone();
+                                    let probe_front = crate::yuyin::session::front_app();
                                     let result = if copy_only {
                                         crate::yuyin::output::copy_instead(&ah_clone, &final_text)
                                     } else {
@@ -910,6 +914,13 @@ impl ShortcutAction for TranscribeAction {
                                     };
                                     let outcome = crate::yuyin::session::finish(&ah_clone);
                                     let pasted = result.is_ok() && !copy_only;
+                                    if pasted {
+                                        crate::yuyin::field_probe::after_paste(
+                                            &ah_clone,
+                                            probe_front,
+                                            probe_text,
+                                        );
+                                    }
                                     match result {
                                         Ok(()) => debug!(
                                             "Text output successfully in {:?}",

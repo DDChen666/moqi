@@ -20,6 +20,7 @@ pub mod commands;
 pub mod config;
 pub mod context;
 pub mod defaults;
+pub mod field_probe;
 pub mod output;
 pub mod polish;
 pub mod prompt;

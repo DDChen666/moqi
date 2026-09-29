@@ -149,6 +149,21 @@ pub fn begin(app: &AppHandle, pressed: Instant) {
     }
 }
 
+/// The app the user started dictating in, for work that happens after the
+/// session ends (the field probe).
+pub fn front_app() -> Option<FrontApp> {
+    CURRENT
+        .lock()
+        .ok()
+        .and_then(|g| g.as_ref().and_then(|s| s.front.clone()))
+}
+
+/// The focused UI element of `pid`: its role and, when it holds plain text,
+/// that text. None without Accessibility or when nothing is focused.
+pub fn focused_field(pid: i32) -> Option<(String, Option<String>)> {
+    platform::focused_field(pid)
+}
+
 pub fn context() -> Context {
     CURRENT
         .lock()
@@ -355,6 +370,7 @@ mod platform {
             attribute: CFTypeRef,
             value: *mut CFTypeRef,
         ) -> i32;
+        fn AXUIElementSetMessagingTimeout(element: CFTypeRef, timeout: f32) -> i32;
     }
 
     #[link(name = "CoreFoundation", kind = "framework")]
@@ -448,6 +464,37 @@ mod platform {
             .unwrap_or_default()
     }
 
+    /// Text longer than this (a terminal's whole scrollback) is not read.
+    const MAX_FIELD_CHARS: isize = 200_000;
+
+    pub fn focused_field(pid: i32) -> Option<(String, Option<String>)> {
+        // SAFETY: AXUIElementCreateApplication returns a +1 reference.
+        let app = unsafe { AXUIElementCreateApplication(pid) };
+        if app.is_null() {
+            return None;
+        }
+        let app = Owned(app);
+        // A busy app must not stall us: answer within half a second or give up.
+        // SAFETY: app is a live AXUIElement.
+        unsafe { AXUIElementSetMessagingTimeout(app.0, 0.5) };
+        let element = copy_attribute(&app, "AXFocusedUIElement")?;
+        // SAFETY: element is a live AXUIElement.
+        unsafe { AXUIElementSetMessagingTimeout(element.0, 0.5) };
+        let role = copy_attribute(&element, "AXRole")
+            .and_then(|r| to_string(&r))
+            .unwrap_or_default();
+        if role == "AXSecureTextField" {
+            return Some((role, None));
+        }
+        let value = copy_attribute(&element, "AXValue").filter(|v| {
+            // SAFETY: v is a live CF object; the length is only read for strings.
+            unsafe {
+                CFGetTypeID(v.0) == CFStringGetTypeID() && CFStringGetLength(v.0) <= MAX_FIELD_CHARS
+            }
+        });
+        Some((role, value.and_then(|v| to_string(&v))))
+    }
+
     /// The frontmost app and its focused window (None without Accessibility).
     pub fn frontmost() -> Option<(FrontApp, Option<Window>)> {
         let workspace = NSWorkspace::sharedWorkspace();
@@ -489,6 +536,10 @@ mod platform {
     }
 
     pub fn frontmost() -> Option<(FrontApp, Option<Window>)> {
+        None
+    }
+
+    pub fn focused_field(_pid: i32) -> Option<(String, Option<String>)> {
         None
     }
 }
