@@ -28,7 +28,7 @@
 
 <br>
 
-<a href="https://github.com/DDChen666/moqi/releases/download/v1.0.0/Moqi-intro-1080p.mp4"><img src="docs/media/video-poster.png" width="100%" alt="Watch the 1-minute intro (Chinese)"></a>
+https://github.com/user-attachments/assets/5ab292d7-40bb-4e79-91b3-a5f2150f4ff2
 
 <br>
 
