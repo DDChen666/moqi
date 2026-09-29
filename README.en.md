@@ -1,98 +1,86 @@
-<div align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/media/banner-dark-en.png">
+  <img src="docs/media/banner-light-en.png" width="100%" alt="默契 Moqi: dictation that gets you. Mandarin, English, and everything in between. Your voice is recognized on your Mac and never uploaded.">
+</picture>
 
-<img src="yuyin/brand/app-icon-1024.png" width="112" alt="Moqi app icon">
-
-# 默契 Moqi
-
-**Dictation that gets you** — Mandarin, English, and everything in between.
-
-Hold the right Option key, speak, let go. The text appears at your cursor.<br>
-Your voice is recognized on your Mac and never uploaded.
-
-[![Latest release](https://img.shields.io/github/v/release/DDChen666/moqi?label=download&color=0a84ff)](https://github.com/DDChen666/moqi/releases/latest)
-[![macOS 15+](https://img.shields.io/badge/macOS-15%2B%20%C2%B7%20Apple%20silicon-black?logo=apple)](docs/安裝教學-Mac.md)
-[![MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![On-device speech](https://img.shields.io/badge/voice-stays%20on%20device-34c759)](docs/隱私.md)
-
-[繁體中文](README.md) · **English**
-
-<img src="docs/media/hero.gif" width="840" alt="A rambling Mandarin-English sentence full of fillers turns into clean text">
-
-[**▶︎ Watch the 1-minute intro**](https://github.com/DDChen666/moqi/releases/download/v1.0.0/Moqi-intro-1080p.mp4) (Chinese) · [Download](https://github.com/DDChen666/moqi/releases/latest)
-
-</div>
-
----
-
-## Why
-
-Many people in Taiwan and across the Chinese-speaking tech world talk like this: 「幫我把這個 PR 的 description 改短一點」 ("shorten this PR's description for me"). Most dictation tools either translate the English words into Chinese or flip the whole sentence into English. The ones that handle it well send your voice to the cloud and charge a subscription.
-
-Moqi aims for three things: **understand code-switched speech, know where you're typing, and keep your voice on your computer.**
-
-## Features
-
-- **🗣 Code-switching that just works** — English words stay English. The speech model (Qwen3-ASR 1.7B) was chosen by testing 8 on-device models on 30 real mixed-language recordings ([benchmarks](docs/評測.md)).
-- **🧹 Say it messy, get it clean** — Drops fillers ("嗯", "那個"), keeps only your final wording when you correct yourself, turns spoken lists into lists. It never swaps your vocabulary.
-- **🧭 Adapts to the app** — Casual in chat apps (no trailing period, no accidental send); every detail and file name intact in Claude Code and terminals; bullet points in Notes.
-- **⚡️ Transcribes while you talk** — Each pause lets Moqi recognize what you said so far. Speak for 30 s and the cleaned-up text lands about 1.8 s after you let go.
-- **🔒 Your voice stays local** — Recognition runs entirely on your Mac. Sending the text to an AI for clean-up is optional, and every request is shown in your history.
-- **🫧 Stays out of the way** — Never steals focus, copies instead of pasting if you switched windows mid-sentence, and restores your clipboard.
+<br>
 
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/media/screenshot-home-dark.png">
-    <img src="docs/media/screenshot-home-light.png" width="840" alt="Moqi home screen: words dictated, time saved, activity grid, shortcuts and privacy card">
-  </picture>
+  <a href="https://github.com/DDChen666/moqi/releases/latest"><img src="docs/media/download-en.png" width="300" alt="Download for macOS"></a>
 </p>
 
-## Install
+<p align="center">
+  <a href="docs/安裝教學-Mac.md"><b>Install guide</b></a> &nbsp;·&nbsp;
+  <a href="docs/使用指南.md"><b>Usage</b></a> &nbsp;·&nbsp;
+  <a href="docs/隱私.md"><b>Privacy</b></a> &nbsp;·&nbsp;
+  <a href="docs/評測.md"><b>Benchmarks</b></a> &nbsp;·&nbsp;
+  <a href="CHANGELOG.md"><b>Changelog</b></a> &nbsp;·&nbsp;
+  <a href="README.md"><b>繁體中文</b></a>
+</p>
 
-**Requires** an Apple silicon Mac (M1 or later), macOS 15 or later, and about 2 GB of disk space.
+<p align="center">
+  <img alt="Version 1.0.0" src="https://img.shields.io/badge/version-1.0.0-0a84ff?style=flat-square">
+  <img alt="macOS 15+" src="https://img.shields.io/badge/macOS-15%2B-1d1d1f?style=flat-square&logo=apple&logoColor=white">
+  <img alt="Apple silicon" src="https://img.shields.io/badge/Apple-silicon-1d1d1f?style=flat-square">
+  <img alt="Voice stays on device" src="https://img.shields.io/badge/voice-on--device-34c759?style=flat-square">
+  <img alt="MIT" src="https://img.shields.io/badge/license-MIT-8e8e93?style=flat-square">
+</p>
 
-1. Download `Moqi_1.0.0_aarch64.dmg` from [Releases](https://github.com/DDChen666/moqi/releases/latest) and drag Moqi into Applications.
-2. The first launch is blocked by macOS because Moqi isn't signed with a paid Apple Developer ID. Open **System Settings → Privacy & Security** and click **Open Anyway**. If macOS says the app "is damaged", run `xattr -dr com.apple.quarantine /Applications/Moqi.app` in Terminal.
-3. Follow the three setup steps: allow Microphone and Accessibility, choose Raw or Tidy, and try a sentence.
+<br>
 
-The interface is available in Traditional Chinese and English (Settings → Language).
+<a href="https://github.com/DDChen666/moqi/releases/download/v1.0.0/Moqi-intro-1080p.mp4"><img src="docs/media/video-poster.png" width="100%" alt="Watch the 1-minute intro (Chinese)"></a>
 
-## Usage
+<br>
 
-| To                 | Do                                              |
-| ------------------ | ----------------------------------------------- |
-| Dictate            | Hold right ⌥ Option, speak, release             |
-| Dictate hands-free | Double-tap right ⌥ Option, speak, tap once more |
-| Cancel             | Esc                                             |
-| Paste again        | Menu bar icon → Paste Last Result               |
+Hold the right Option key, speak, let go — the text appears at your cursor. Moqi is built for people who **switch between Mandarin and English mid-sentence**. Speech is recognized entirely on your Mac; sending the text to an AI for clean-up is up to you.
 
-| Level                  | What it does                                           | Needs                                                                                           |
-| ---------------------- | ------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
-| **Raw**                | Punctuation, Traditional Chinese, your dictionary      | Nothing — fully on-device                                                                       |
-| **Tidy** (recommended) | Removes fillers and false starts, formats spoken lists | An API key for the clean-up service (DeepSeek by default; any OpenAI-compatible endpoint works) |
-| **Polish**             | Rewrites into written prose                            | Same                                                                                            |
+<br>
 
-## Privacy
+<img src="docs/media/feature-mixed.png" width="100%" alt="Code-switching that just works: fillers removed, PR, description and breaking changes kept in English">
 
-|                   |                                                                                     |
-| ----------------- | ----------------------------------------------------------------------------------- |
-| Your voice        | Never leaves your Mac                                                               |
-| Sent for clean-up | Only the recognized text, your dictionary words, and a context label such as "chat" |
-| Never sent        | Audio, app names, window titles, what was already in the text field                 |
-| API key           | macOS Keychain only                                                                 |
-| Otherwise         | No account, no analytics, no auto-update                                            |
+**English stays English, fillers disappear.** 「幫我把這個 PR 的 description 改短一點」 is neither translated into Chinese nor flipped into English. The speech model was chosen by testing 8 on-device models on 30 real mixed-language recordings.
 
-Details (in Chinese): [docs/隱私.md](docs/隱私.md)
+<br>
 
-## Numbers
+<img src="docs/media/feature-context.png" width="100%" alt="It knows where you're typing: chat, instructions to AI, and notes each get their own format">
 
-|                                                     |                                      |
-| --------------------------------------------------- | ------------------------------------ |
-| Meaning errors on 30 real mixed-language clips      | **3** (fewest of 8 on-device models) |
-| Meaning preserved after clean-up                    | **27 / 30**                          |
-| Release to text, 30 s+ dictation (real use, median) | **1.8 s**                            |
-| Key press to recording                              | **0.07 s**                           |
+**Adapts to the app.** Casual in chat apps — no trailing period, no accidental send. Every command and file name intact in Claude Code and terminals. Spoken lists become bullet points in Notes. The app is identified on your Mac; only a label such as "chat" is sent.
 
-These come from one speaker's recordings on an M3 MacBook Air; see [the benchmark write-up](docs/評測.md) for the method and its limits.
+<br>
+
+<img src="docs/media/feature-speed.png" width="100%" alt="1.80 seconds after release; 4.3 seconds without transcribing while you talk">
+
+**Transcribes while you talk.** Every pause lets Moqi recognize what you've said so far. After 30+ seconds of dictation, cleaned-up text lands a median 1.8 s after you let go (real-world usage, AI clean-up included).
+
+<br>
+
+<img src="docs/media/feature-privacy.png" width="100%" alt="Recognition stays on your Mac; the privacy card shows 0 seconds of audio uploaded">
+
+**Your voice never leaves your computer.** No account, no analytics, no auto-update. The API key lives in the macOS Keychain. In Raw mode, not even text is sent.
+
+<br>
+
+<img src="docs/media/feature-history.png" width="100%" alt="Every request is on record: history shows what was sent and what wasn't">
+
+**See exactly what was sent, every time.** History keeps the raw transcript, the recording and a list of what left your Mac. Paste again with one click; switch windows mid-sentence and Moqi copies instead of pasting in the wrong place.
+
+<br>
+
+## Get started
+
+1. [Download](https://github.com/DDChen666/moqi/releases/latest) `Moqi_1.0.0_aarch64.dmg` and drag Moqi into Applications.
+2. The first launch is blocked because Moqi isn't signed with a paid Apple Developer ID. Open **System Settings → Privacy & Security** and click **Open Anyway**. If macOS says the app "is damaged", run `xattr -dr com.apple.quarantine /Applications/Moqi.app` in Terminal.
+3. Follow the three setup steps: allow permissions, choose Raw or Tidy, and try a sentence.
+
+Requires an M1 or later Mac with macOS 15 or later. The interface is available in Traditional Chinese and English.
+
+|                        | What it does                                                    | Needs                                                                                     |
+| ---------------------- | --------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| **Raw**                | Punctuation, Traditional Chinese, your dictionary               | Nothing — fully on-device                                                                 |
+| **Tidy** (recommended) | Removes fillers and false starts, turns spoken lists into lists | An API key for the clean-up service (DeepSeek by default; any OpenAI-compatible endpoint) |
+| **Polish**             | Rewrites into written prose                                     | Same                                                                                      |
+
+Hold right ⌥ Option to dictate, double-tap for hands-free, Esc to cancel.
 
 ## Roadmap
 
@@ -101,26 +89,17 @@ These come from one speaker's recordings on an M3 MacBook Air; see [the benchmar
 - [ ] **On-device clean-up** with a small local language model, so not even text leaves your computer.
 - [ ] **Learns your typing habits** (spaces vs. line breaks, punctuation), off by default.
 
-## Build from source
+## Contributing
 
-Xcode Command Line Tools, Rust, Bun and CMake on an Apple silicon Mac:
-
-```sh
-bun install
-bun run tauri dev
-```
-
-Release builds, signing and troubleshooting: [BUILD.md](BUILD.md). Architecture: [docs/架構.md](docs/架構.md). Contributions welcome in English or Chinese — see [CONTRIBUTING.md](CONTRIBUTING.md).
+Bug reports, "what I said vs. what Moqi wrote" examples and pull requests are welcome, in English or Chinese. See [CONTRIBUTING.md](CONTRIBUTING.md), [BUILD.md](BUILD.md) and the [architecture notes](docs/架構.md).
 
 ## Credits
 
-- [**Handy**](https://github.com/cjpais/Handy) by CJ Pais (MIT) — the foundation: hotkeys, overlay, recording and transcription. See [FORK.md](FORK.md).
-- [**Qwen3-ASR**](https://github.com/QwenLM/Qwen3-ASR) (Apache 2.0) — speech recognition.
-- [**transcribe.cpp**](https://github.com/handy-computer/transcribe.cpp) (MIT) — on-device inference.
-- [**Silero VAD**](https://github.com/snakers4/silero-vad) (MIT) — voice activity detection.
-- [**OpenCC**](https://github.com/BYVoid/OpenCC) (Apache 2.0) — Chinese conversion and Taiwan wording.
-- [**Tauri**](https://tauri.app/)
+Moqi is built on [Handy](https://github.com/cjpais/Handy) (hotkeys, overlay, recording and transcription — see [FORK.md](FORK.md)), [Qwen3-ASR](https://github.com/QwenLM/Qwen3-ASR), [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp), [Silero VAD](https://github.com/snakers4/silero-vad), [OpenCC](https://github.com/BYVoid/OpenCC) and [Tauri](https://tauri.app/).
 
-## License
+<br>
 
-[MIT](LICENSE)
+<p align="center">
+  <img src="yuyin/brand/app-icon-1024.png" width="64" alt=""><br>
+  <sub>默契 Moqi · <a href="LICENSE">MIT License</a></sub>
+</p>
