@@ -259,7 +259,8 @@
         "title": "Input device",
         "description": "Which microphone to listen with",
         "placeholder": "Select microphone...",
-        "loading": "Loading..."
+        "loading": "Loading...",
+        "systemDefault": "System default"
       },
       "channel": {
         "title": "Input Channel",

@@ -235,7 +235,8 @@
         "title": "麦克风",
         "description": "选择您偏好的麦克风设备",
         "placeholder": "选择麦克风...",
-        "loading": "加载中..."
+        "loading": "加载中...",
+        "systemDefault": "系统默认"
       },
       "channel": {
         "title": "输入通道",

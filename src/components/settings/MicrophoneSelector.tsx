@@ -36,9 +36,14 @@ export const MicrophoneSelector: React.FC<MicrophoneSelectorProps> = React.memo(
       await resetSetting("selected_microphone");
     };
 
+    // Yuyin fork: the backend names the system default device "Default";
+    // show it in the UI language.
     const microphoneOptions = audioDevices.map((device) => ({
       value: device.name,
-      label: device.name,
+      label:
+        device.name === "Default"
+          ? t("settings.sound.microphone.systemDefault")
+          : device.name,
     }));
 
     return (

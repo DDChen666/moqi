@@ -1,7 +1,7 @@
 // Yuyin fork: every setting Moqi has — shortcut, clean-up level, clean-up
 // service and key, microphone, general — plus About. Handy's other settings
 // keep the defaults written by yuyin/defaults.rs.
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { ShortcutInput } from "@/components/settings/ShortcutInput";
@@ -171,6 +171,13 @@ export const SettingsPage: React.FC = () => {
   const { settings, updateSetting } = useSettings();
   const [config, setConfig] = useState<YuyinConfig | null>(null);
   const [about, setAbout] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  // About is a sub-view, not a page: the window only resets the scroll on a
+  // page change, so start About (and the way back) at the top here.
+  useLayoutEffect(() => {
+    rootRef.current?.closest(".overflow-y-auto")?.scrollTo({ top: 0 });
+  }, [about]);
 
   useEffect(() => {
     yuyinApi
@@ -190,7 +197,7 @@ export const SettingsPage: React.FC = () => {
 
   if (about) {
     return (
-      <div className="flex flex-col gap-4">
+      <div ref={rootRef} className="flex flex-col gap-4">
         <button
           type="button"
           onClick={() => setAbout(false)}
@@ -216,7 +223,7 @@ export const SettingsPage: React.FC = () => {
   );
 
   return (
-    <div className="flex flex-col gap-[18px] max-w-[600px]">
+    <div ref={rootRef} className="flex flex-col gap-[18px] max-w-[600px]">
       <h1 className="m-0 mb-1 text-[26px] font-bold tracking-[-0.02em] text-text">
         {t("moqi.nav.settings")}
       </h1>

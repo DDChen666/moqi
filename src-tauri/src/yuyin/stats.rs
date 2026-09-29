@@ -25,6 +25,8 @@ struct Record {
     level: Option<String>,
     polish: String,
     press_to_release_ms: Option<u64>,
+    /// Audio kept after silence is trimmed; missing on the oldest lines.
+    audio_ms: Option<u64>,
     release_to_output_ms: Option<u64>,
     chars_in: u64,
     chars_out: u64,
@@ -124,6 +126,44 @@ fn local_date(at_ms: i64) -> Option<NaiveDate> {
         .map(|t| t.date_naive())
 }
 
+/// Drop a history entry the user deleted from the timings log, so the home
+/// page stops counting it. Entries that age out of the 100-entry history keep
+/// their line: they still happened.
+pub fn forget(app: &AppHandle, file_name: &str) {
+    let Some(path) = super::session::timings_path(app) else {
+        return;
+    };
+    let _guard = super::session::TIMINGS_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let Ok(text) = std::fs::read_to_string(&path) else {
+        return;
+    };
+    let kept = without_entry(&text, file_name);
+    if kept.len() == text.len() {
+        return;
+    }
+    let tmp = path.with_extension("jsonl.tmp");
+    let result = std::fs::write(&tmp, kept).and_then(|_| std::fs::rename(&tmp, &path));
+    if let Err(e) = result {
+        log::warn!("Failed to drop a deleted entry from the timings log: {e}");
+    }
+}
+
+/// The log without the lines for `file_name`. Lines that don't parse stay.
+fn without_entry(text: &str, file_name: &str) -> String {
+    text.lines()
+        .filter(|line| {
+            serde_json::from_str::<Record>(line)
+                .map_or(true, |r| r.file_name.as_deref() != Some(file_name))
+        })
+        .fold(String::new(), |mut out, line| {
+            out.push_str(line);
+            out.push('\n');
+            out
+        })
+}
+
 pub fn stats(app: &AppHandle) -> Stats {
     compute(&read_records(app), Local::now().date_naive(), local_date)
 }
@@ -157,7 +197,12 @@ fn compute(
     date_of: impl Fn(i64) -> Option<NaiveDate>,
 ) -> Stats {
     let chars: u64 = records.iter().map(|r| r.chars_out).sum();
-    let speaking_ms: u64 = records.iter().filter_map(|r| r.press_to_release_ms).sum();
+    // Speech, not key-down time: a recording left running (a stuck key, a
+    // hands-free session nobody ended) would otherwise drag the speed down.
+    let speaking_ms: u64 = records
+        .iter()
+        .filter_map(|r| r.audio_ms.or(r.press_to_release_ms))
+        .sum();
     let typing_ms = chars * 60_000 / TYPING_CHARS_PER_MINUTE;
     let chars_per_minute = if speaking_ms > 0 {
         (chars * 60_000 / speaking_ms) as u32
@@ -326,5 +371,31 @@ not json
                 "api.example.com".to_string()
             ]
         );
+    }
+
+    #[test]
+    fn forgetting_an_entry_drops_only_its_line() {
+        let log = concat!(
+            r#"{"at":1,"chars_out":5,"file_name":"a.wav"}"#,
+            "\n",
+            r#"{"at":2,"chars_out":7,"file_name":"b.wav"}"#,
+            "\n",
+            "not json\n",
+        );
+        let kept = without_entry(log, "a.wav");
+        assert!(!kept.contains("a.wav"));
+        assert!(kept.contains("b.wav"));
+        assert!(kept.contains("not json"));
+        assert_eq!(without_entry(log, "missing.wav"), log);
+    }
+
+    #[test]
+    fn a_long_silent_recording_does_not_drag_the_speed_down() {
+        let mut stuck = rec("2026-09-29", 60, 600_000, 0);
+        stuck.audio_ms = Some(20_000);
+        let normal = rec("2026-09-29", 100, 30_000, 0);
+        let stats = compute(&[stuck, normal], day("2026-09-29"), date_of_utc);
+        // 160 chars over 50 s of speech, not over 630 s of key-down.
+        assert_eq!(stats.chars_per_minute, 192);
     }
 }

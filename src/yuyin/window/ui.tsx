@@ -148,7 +148,7 @@ export function Segmented<T extends string>({
 }
 
 export const Kbd: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <kbd className="font-sans text-[11px] leading-none px-[7px] py-[4px] rounded-[6px] bg-background text-text shadow-[0_0_0_0.5px_rgba(0,0,0,0.16),0_1px_0_rgba(0,0,0,0.08)] dark:shadow-[0_0_0_0.5px_rgba(255,255,255,0.16)]">
+  <kbd className="font-sans whitespace-nowrap text-[11px] leading-none px-[7px] py-[4px] rounded-[6px] bg-background text-text shadow-[0_0_0_0.5px_rgba(0,0,0,0.16),0_1px_0_rgba(0,0,0,0.08)] dark:shadow-[0_0_0_0.5px_rgba(255,255,255,0.16)]">
     {children}
   </kbd>
 );

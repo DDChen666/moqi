@@ -12,6 +12,9 @@ use super::session::{self, PolishOutcome};
 const NOTICE_DURATION: Duration = Duration::from_millis(1800);
 /// Long enough for the check mark to draw (0.4 s) and be seen.
 const DONE_DURATION: Duration = Duration::from_millis(650);
+/// Nothing left the computer: the pill also says "all on this Mac", which
+/// needs time to be read.
+const LOCAL_DONE_DURATION: Duration = Duration::from_millis(1400);
 const FALLBACK_DURATION: Duration = Duration::from_millis(1600);
 
 /// After a successful paste: a check mark, or a short notice that the raw
@@ -19,6 +22,7 @@ const FALLBACK_DURATION: Duration = Duration::from_millis(1600);
 pub fn show_result(app: &AppHandle, outcome: Option<PolishOutcome>) {
     let (state, duration) = match outcome {
         Some(PolishOutcome::Failed) => ("fallback", FALLBACK_DURATION),
+        Some(PolishOutcome::Skipped) => ("done", LOCAL_DONE_DURATION),
         _ => ("done", DONE_DURATION),
     };
     crate::overlay::show_result_overlay(app, state);

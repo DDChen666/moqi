@@ -259,7 +259,8 @@
         "title": "輸入裝置",
         "description": "用哪一支麥克風收音",
         "placeholder": "選擇麥克風...",
-        "loading": "載入中..."
+        "loading": "載入中...",
+        "systemDefault": "系統預設"
       },
       "channel": {
         "title": "輸入聲道",

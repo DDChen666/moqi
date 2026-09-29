@@ -266,17 +266,19 @@ export const HomePage: React.FC<{
             <h2 className="m-0 text-[13px] font-semibold text-text">
               {t("moqi.home.shortcuts")}
             </h2>
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-[12px] text-text/80">
+            <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+              <span className="text-[12px] text-text/80 whitespace-nowrap">
                 {t("moqi.home.holdToTalk")}
               </span>
-              <Kbd>{talkKey}</Kbd>
+              <span className="ml-auto">
+                <Kbd>{talkKey}</Kbd>
+              </span>
             </div>
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-[12px] text-text/80">
+            <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+              <span className="text-[12px] text-text/80 whitespace-nowrap">
                 {t("moqi.home.handsFree")}
               </span>
-              <span className="flex gap-[3px]">
+              <span className="ml-auto flex gap-[3px]">
                 <Kbd>{tapKey}</Kbd>
                 <Kbd>{tapKey}</Kbd>
               </span>

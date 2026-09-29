@@ -367,6 +367,17 @@ async fn maybe_convert_chinese_variant(
         effective_language
     );
 
+    // Yuyin fork: Traditional output uses Taiwan's everyday vocabulary and 台.
+    if is_traditional {
+        return match crate::yuyin::wording::taiwan(transcription) {
+            Ok(converted) => Some(converted),
+            Err(e) => {
+                error!("Failed to initialize OpenCC converter: {}. Falling back to original transcription.", e);
+                None
+            }
+        };
+    }
+
     // Use OpenCC to convert based on selected language
     let config = if is_simplified {
         // Convert Traditional Chinese to Simplified Chinese

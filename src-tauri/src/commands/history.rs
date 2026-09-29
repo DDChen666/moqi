@@ -49,14 +49,25 @@ pub async fn get_audio_file_path(
 #[tauri::command]
 #[specta::specta]
 pub async fn delete_history_entry(
-    _app: AppHandle,
+    app: AppHandle,
     history_manager: State<'_, Arc<HistoryManager>>,
     id: i64,
 ) -> Result<(), String> {
+    // Yuyin fork: a deleted entry also leaves the home page's numbers.
+    let file_name = history_manager
+        .get_entry_by_id(id)
+        .await
+        .ok()
+        .flatten()
+        .map(|entry| entry.file_name);
     history_manager
         .delete_entry(id)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    if let Some(file_name) = file_name {
+        crate::yuyin::stats::forget(&app, &file_name);
+    }
+    Ok(())
 }
 
 #[tauri::command]

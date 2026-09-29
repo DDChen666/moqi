@@ -24,6 +24,9 @@ use super::config::Level;
 use super::context::{classify, display_name, Context, FrontApp};
 
 const TIMINGS_FILE: &str = "yuyin_timings.jsonl";
+/// Held while appending to or rewriting the timings log, so deleting a
+/// history entry can't drop a record written at the same moment.
+pub static TIMINGS_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 /// Presses shorter than this are accidental taps and produce no text
 /// (acceptance criterion 3).
@@ -337,6 +340,7 @@ pub fn finish(app: &AppHandle) -> Option<PolishOutcome> {
     let Ok(line) = serde_json::to_string(&record) else {
         return Some(outcome);
     };
+    let _guard = TIMINGS_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let result = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
