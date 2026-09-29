@@ -396,8 +396,11 @@ mod platform {
 
     impl Drop for Owned {
         fn drop(&mut self) {
-            // SAFETY: we only wrap references we own (Create/Copy rule).
-            unsafe { CFRelease(self.0) }
+            // CFRelease(NULL) aborts the process; never hand it one.
+            if !self.0.is_null() {
+                // SAFETY: we only wrap references we own (Create/Copy rule).
+                unsafe { CFRelease(self.0) }
+            }
         }
     }
 
@@ -410,7 +413,13 @@ mod platform {
         let r = unsafe {
             CFStringCreateWithBytes(std::ptr::null(), s.as_ptr(), s.len() as isize, UTF8, 0)
         };
-        (!r.is_null()).then_some(Owned(r))
+        // Not `then_some(Owned(r))`: that builds (and drops) the Owned even
+        // when the check fails.
+        if r.is_null() {
+            None
+        } else {
+            Some(Owned(r))
+        }
     }
 
     fn to_string(cf: &Owned) -> Option<String> {
@@ -435,7 +444,27 @@ mod platform {
         let mut value: CFTypeRef = std::ptr::null();
         // SAFETY: element and attribute are live; value receives a +1 reference.
         let err = unsafe { AXUIElementCopyAttributeValue(element.0, attribute.0, &mut value) };
-        (err == 0 && !value.is_null()).then_some(Owned(value))
+        // A failed copy leaves `value` NULL. Build the Owned only on success:
+        // `then_some(Owned(value))` built it anyway and released NULL, which
+        // crashed the app once the field probe read attributes that many
+        // elements don't have (2026-09-29).
+        if err == 0 && !value.is_null() {
+            Some(Owned(value))
+        } else {
+            None
+        }
+    }
+
+    /// Test hook: one attribute of an app element, as `copy_attribute` sees it.
+    #[cfg(test)]
+    pub fn attribute_of_app(pid: i32, name: &str) -> Option<()> {
+        // SAFETY: AXUIElementCreateApplication returns a +1 reference.
+        let app = unsafe { AXUIElementCreateApplication(pid) };
+        if app.is_null() {
+            return None;
+        }
+        let app = Owned(app);
+        copy_attribute(&app, name).map(|_| ())
     }
 
     /// The focused window of an app, kept alive so it can be compared later.
@@ -519,6 +548,26 @@ mod platform {
             },
             window,
         ))
+    }
+}
+
+#[cfg(all(test, target_os = "macos"))]
+mod platform_tests {
+    use super::platform::*;
+
+    /// A failed attribute copy leaves its out-pointer NULL; releasing that
+    /// crashed the app (2026-09-29, CFRelease on a background thread).
+    #[test]
+    fn missing_attributes_are_none_not_a_crash() {
+        let pid = std::process::id() as i32;
+        for _ in 0..50 {
+            assert!(attribute_of_app(pid, "AXThisAttributeDoesNotExist").is_none());
+        }
+        // Our own test process has no focused text field; this must simply
+        // come back empty, however often it is asked.
+        for _ in 0..50 {
+            let _ = focused_field(pid);
+        }
     }
 }
 
