@@ -18,7 +18,7 @@ Handy 已經做好 Mac 上最難的部分：
 - 權限引導
 
 我們要加的是產品層的東西：情境判斷、焦點檢查、依 App 調整貼上方式、潤飾程度、失敗後一鍵重貼等等。
-評估過程在 `../設計文件/產品定義_v0.md`。
+選模型和整理方式的評估見 [docs/評測.md](docs/評測.md)，架構見 [docs/架構.md](docs/架構.md)。
 
 ## 維護方式
 
@@ -30,7 +30,7 @@ Handy 已經做好 Mac 上最難的部分：
 
 ## 授權
 
-- 保留原本的 `LICENSE`（Copyright (c) 2025 CJ Pais）。App 的「關於」頁面（`src/yuyin/YuyinAbout.tsx`）會顯示 Handy 的致謝和完整授權條款，條款內容直接讀這個 `LICENSE` 檔。
+- 保留原本的 `LICENSE`（Copyright (c) 2025 CJ Pais），再加上默契的版權行。App 的「關於」頁面（`src/yuyin/YuyinAbout.tsx`）會顯示 Handy 的致謝和完整授權條款，條款內容直接讀這個 `LICENSE` 檔。
 - Handy 的「新功能」彈窗拿掉了（內容是 Handy 的版本紀錄）。版本號從 0.1.0 重新開始。
 - MIT 不包含商標，所以不能用「Handy」這個名字。App 名稱（默契／Moqi）、識別碼（`tw.yuyin.dictation`）都已經換掉，自動更新也關了。
   - 自動更新在 `settings.rs` 的 `update_checks_forced_disabled()`。

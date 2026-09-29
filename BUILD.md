@@ -1,281 +1,90 @@
-# Build Instructions
+# 從原始碼編譯
 
-This guide covers how to set up the development environment and build Handy from source across different platforms.
+> English: requirements are Xcode Command Line Tools, Rust, Bun and CMake on an Apple Silicon Mac. `bun install`, then `bun run tauri dev` or `bun run tauri build --bundles app`. Sign every build with the same identity (`scripts/signing_identity.sh`) so macOS keeps the permissions.
 
-## Prerequisites
+目前正式支援 **macOS（Apple 晶片）**。Windows 版正在移植，Linux 沒有計畫。
 
-### All Platforms
+## 需要的工具
 
-- [Rust](https://rustup.rs/) (latest stable)
-- [Bun](https://bun.sh/) package manager
-- [Tauri Prerequisites](https://tauri.app/start/prerequisites/)
+| 工具             | 安裝                                                       |
+| ---------------- | ---------------------------------------------------------- |
+| Xcode 命令列工具 | `xcode-select --install`                                   |
+| Rust（stable）   | [rustup.rs](https://rustup.rs/)                            |
+| Bun              | [bun.sh](https://bun.sh/)                                  |
+| CMake            | `brew install cmake`（編譯語音辨識引擎 transcribe.cpp 用） |
 
-### Platform-Specific Requirements
+第一次編譯要編 transcribe.cpp 和 Metal 核心，約 20 分鐘；之後約 4–6 分鐘。
 
-#### macOS
+## 開發
 
-- Xcode Command Line Tools
-- Install with: `xcode-select --install`
-
-##### Intel Mac (x86_64)
-
-Prebuilt ONNX Runtime binaries are not available for Intel Macs. Install ONNX Runtime via Homebrew and link dynamically:
-
-```bash
-brew install onnxruntime
-ORT_LIB_LOCATION=$(brew --prefix onnxruntime)/lib ORT_PREFER_DYNAMIC_LINK=1 bun run tauri dev
-```
-
-The same environment variables apply for production builds:
-
-```bash
-ORT_LIB_LOCATION=$(brew --prefix onnxruntime)/lib ORT_PREFER_DYNAMIC_LINK=1 bun run tauri build
-```
-
-#### Windows
-
-- Microsoft C++ Build Tools: Visual Studio 2019/2022 with C++ development
-  tools, or Visual Studio Build Tools 2019/2022
-- [CMake](https://cmake.org/download/) (must be on `PATH`):
-
-  ```powershell
-  winget install Kitware.CMake
-  ```
-
-- [Vulkan SDK](https://vulkan.lunarg.com/sdk/home) from LunarG — required to
-  build the Vulkan GPU backend (`vulkan-shaders-gen` needs the SDK's headers
-  and `glslc`):
-
-  ```powershell
-  winget install KhronosGroup.VulkanSDK
-  ```
-
-  Open a new terminal afterward so `VULKAN_SDK` is set.
-
-> [!NOTE]
-> Windows' 260-character path limit used to break the native Vulkan build in
-> most checkouts. Since `transcribe-cpp` 0.1.3 the build works around it
-> automatically (it compiles through a short NTFS junction — no admin rights
-> or setup needed), so a normal checkout just builds. If you still hit
-> path-limit errors, see
-> [Windows build fails with path-limit errors](#windows-build-fails-with-path-limit-errors-msb3491--ftk1011--msb6003)
-> in Troubleshooting.
-
-#### Linux
-
-- Build essentials
-- ALSA development libraries
-- Install with:
-
-  ```bash
-  # Ubuntu/Debian
-  sudo apt update
-  sudo apt install build-essential clang libclang-dev libevdev-dev libasound2-dev pkg-config libssl-dev libvulkan-dev vulkan-tools glslc spirv-headers glslang-tools libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libgtk-layer-shell0 libgtk-layer-shell-dev patchelf cmake
-
-  # Fedora/RHEL
-  sudo dnf groupinstall "Development Tools"
-  sudo dnf install alsa-lib-devel pkgconf openssl-devel vulkan-devel glslc \
-    clang clang-devel libevdev-devel \
-    spirv-headers-devel spirv-tools-devel glslang \
-    gtk3-devel webkit2gtk4.1-devel libappindicator-gtk3-devel librsvg2-devel \
-    gtk-layer-shell gtk-layer-shell-devel \
-    cmake
-
-  # Arch Linux
-  sudo pacman -S base-devel clang libevdev shaderc spirv-headers glslang alsa-lib pkgconf openssl vulkan-devel \
-    gtk3 webkit2gtk-4.1 libappindicator-gtk3 librsvg gtk-layer-shell \
-    cmake
-  ```
-
-## Setup Instructions
-
-### 1. Clone the Repository
-
-```bash
-git clone git@github.com:cjpais/Handy.git
-cd Handy
-```
-
-### 2. Install Dependencies
-
-```bash
+```sh
+git clone https://github.com/DDChen666/moqi.git
+cd moqi
 bun install
-```
-
-### 3. Start Dev Server
-
-```bash
-bun tauri dev
-```
-
-### 4. Build for Production
-
-```bash
-bun run tauri build
-```
-
-This compiles a release binary and generates platform-specific bundles (deb, rpm, AppImage on Linux; dmg on macOS; msi on Windows).
-
-## Linux Install (from source)
-
-The raw binary (`src-tauri/target/release/handy`) cannot run standalone — it needs Tauri resource files (tray icons, sounds, VAD model) to be co-located at the expected path.
-
-**Install from the deb bundle** (works on any Linux distro):
-
-```bash
-cd /tmp
-ar x /path/to/Handy/src-tauri/target/release/bundle/deb/Handy_*_amd64.deb data.tar.gz
-tar xzf data.tar.gz
-sudo cp usr/bin/handy /usr/bin/
-sudo cp -a usr/lib/. /usr/lib/
-sudo cp -r usr/share/icons/hicolor/* /usr/share/icons/hicolor/
-sudo cp usr/share/applications/Handy.desktop /usr/share/applications/
-```
-
-The runtime libraries live in the app-private `/usr/lib/Handy/` (on the binary's rpath), so no `ldconfig` step is needed.
-
-After subsequent rebuilds, copy the binary and any refreshed runtime libraries:
-
-```bash
-sudo cp src-tauri/target/release/handy /usr/bin/
-sudo mkdir -p /usr/lib/Handy
-sudo cp -a src-tauri/transcribe-libs/. /usr/lib/Handy/
-```
-
-Resources only need re-copying if they change upstream (new icons, sounds, models, etc.).
-
-## Troubleshooting
-
-### macOS Accessibility remains enabled after a local rebuild
-
-Local builds use the ad-hoc `signingIdentity: "-"`. A rebuild can have a new macOS code
-identity while the old **System Settings > Privacy & Security > Accessibility** entry
-remains visibly enabled, leaving Handy on `Waiting...`.
-
-After installing the final bundle at `/Applications/Handy.app`, quit Handy, clear only its
-stale Accessibility record, then reopen it:
-
-```bash
-osascript -e 'tell application id "com.pais.handy" to quit' || true
-tccutil reset Accessibility com.pais.handy
-open /Applications/Handy.app
-```
-
-Grant Accessibility again when prompted. This does not reset Microphone or other TCC
-services, and official releases normally do not need it.
-
-For optional diagnosis, compare the designated requirements of the previous and rebuilt
-bundles:
-
-```bash
-codesign -dr - /path/to/previous/Handy.app 2>&1
-codesign -dr - /Applications/Handy.app 2>&1
-```
-
-An ad-hoc requirement contains a `cdhash`; a changed requirement confirms the rebuild is
-not covered by the old grant. The reset procedure does not require this check.
-
-See [issue #1618](https://github.com/cjpais/Handy/issues/1618) for the related onboarding
-and stale-permission report.
-
-### AppImage build fails on Arch / rolling-release distros
-
-`linuxdeploy` bundles its own `strip` binary which is too old to process system libraries built with newer toolchains on rolling-release distros (Arch, CachyOS, Manjaro, EndeavourOS).
-
-The error from Tauri:
-
-```
-Bundling Handy_*_amd64.AppImage
-failed to bundle project `failed to run linuxdeploy`
-```
-
-Tauri swallows the real linuxdeploy error. To see it, run linuxdeploy manually:
-
-```bash
-cd src-tauri/target/release/bundle/appimage
-~/.cache/tauri/linuxdeploy-x86_64.AppImage --appimage-extract-and-run \
-  --appdir Handy.AppDir --plugin gtk --output appimage
-```
-
-**Workaround:** The binary, deb, and rpm bundles all build fine — only the AppImage step fails. To skip it:
-
-```bash
-bun run tauri build -- --bundles deb
-```
-
-Then install using the deb extraction method above.
-
-### Windows build fails with path-limit errors (`MSB3491` / `FTK1011` / `MSB6003`)
-
-On Windows the native build can fail partway through `transcribe-cpp-sys` with
-any of these (all the same root cause):
-
-```
-error MSB3491: Could not write lines to file "...VCTargetsPath.tlog\VCTargetsPath.lastbuildstate".
-Path: ... exceeds the OS max path limit. The fully qualified file name must be less than 260 characters.
-```
-
-```
-FileTracker : error FTK1011: could not create the new file tracking log file:
-...\vulkan-shaders-gen-build\...\cmTC_xxxxx.tlog\link.write.1.tlog.
-The system cannot find the path specified.
-```
-
-```
-error MSB6003: The specified task executable "CL.exe" could not be run.
-System.IO.DirectoryNotFoundException: Could not find a part of the path ...
-```
-
-This is **not** a code or toolchain problem — it's Windows' legacy 260-character
-path limit (`MAX_PATH`), overflowed by the Vulkan shader generator's nested
-CMake build tree on top of Cargo's already-deep
-`target\release\build\<crate>-<hash>\out\build\...` directory.
-
-Since `transcribe-cpp` 0.1.3 this is mitigated automatically: the native build
-compiles through a short NTFS junction under `%LOCALAPPDATA%\tcs` (created
-without admin rights), so a normal checkout builds with no setup. Enabling
-Windows long paths does **not** reliably help here — MSBuild's native
-`FileTracker` (`tracker.exe`) ignores the long-paths flag — which is why the
-junction, not the registry flag, is the fix.
-
-If you still see the errors above, junction creation was likely blocked
-(filesystem or corporate policy) — the failing build's log then contains a
-`transcribe-cpp-sys: could not create short build junction ...` warning — or
-your checkout is deep enough to overflow even the shortened layout. Work
-around either case with a short Cargo target directory:
-
-```powershell
-# Per-shell:
-$env:CARGO_TARGET_DIR = "C:\h"
-
-# Or persist it for all future terminals (note: redirects ALL your
-# Rust projects' build output, not just Handy):
-[Environment]::SetEnvironmentVariable('CARGO_TARGET_DIR', 'C:\h', 'User')
-```
-
-Artifacts then land in `C:\h\release\...` instead of the repo's
-`src-tauri\target\`. Open a **new terminal** if you persisted the variable —
-it is only picked up by freshly started processes. Then `bun run tauri dev`
-and `bun run tauri build` work normally.
-
-### Windows `tauri build` fails at bundling with `program not found`
-
-If the build compiles all the way to `Built application at: ...\handy.exe` and
-then fails with:
-
-```
-Signing C:\...\handy.exe with a custom signing command
-failed to bundle project `program not found`
-```
-
-that's the code-signing step: `tauri.conf.json` configures a custom
-`signCommand` (`trusted-signing-cli`, Azure Trusted Signing) that only exists
-in the release CI environment. Local development doesn't need it:
-
-```powershell
-# Development (no bundling/signing at all):
 bun run tauri dev
-
-# Or compile a release binary without the installer/signing step:
-bun run tauri build --no-bundle
 ```
+
+- 辨識模型（Qwen3-ASR 1.7B，約 1.5 GB）第一次打開時會自動下載到 `~/Library/Application Support/tw.yuyin.dictation/models/`。
+- 靜音偵測模型 `silero_vad_v4.onnx` 已經放在 `src-tauri/resources/models/`。
+- 潤稿服務的 API key 在 App 的「設定」裡填，存在鑰匙圈；開發時不需要任何環境變數。
+
+## 編譯成 App
+
+```sh
+sh scripts/signing_identity.sh "Moqi Dev"          # 第一次會建立憑證，之後只解鎖
+APPLE_SIGNING_IDENTITY="Moqi Dev" bun run tauri build --bundles app
+```
+
+產出在 `src-tauri/target/release/bundle/macos/Moqi.app`。要做安裝檔，把 `--bundles app` 換成 `--bundles app,dmg`。
+
+### 為什麼要固定的簽章
+
+macOS 的「麥克風」和「輔助使用」權限跟著 App 的程式碼簽章走。
+
+- 不指定 `APPLE_SIGNING_IDENTITY` 時，Tauri 用 ad-hoc 簽章，**每次編譯都會變**，每次都要重新授權。
+- `scripts/signing_identity.sh` 建立一張只在你電腦上有效的自製憑證，放在獨立的鑰匙圈，不碰你的登入鑰匙圈。之後每次都用它簽章，權限就會保留。
+- 這不是 Apple 的 Developer ID：第一次打開仍會被 Gatekeeper 擋下，要到「隱私權與安全性」按「強制打開」（見 [docs/安裝教學-Mac.md](docs/安裝教學-Mac.md)）。
+
+### 裝進「應用程式」
+
+```sh
+pkill -f /Applications/Moqi.app/Contents/MacOS/handy || true
+ditto src-tauri/target/release/bundle/macos/Moqi.app /Applications/Moqi.app
+open /Applications/Moqi.app
+```
+
+程式碼放在 exFAT 等外接硬碟時，複製後的權限可能只有自己能讀，App 會從啟動台和 Spotlight 消失。補一行 `chmod -R go+rX /Applications/Moqi.app` 即可。
+
+## 測試與檢查
+
+提交前請跑：
+
+```sh
+cd src-tauri && cargo fmt && cargo test --release --lib && cd ..
+bun x prettier --write . && bun run lint && bun x tsc --noEmit
+```
+
+這些也是 [CI](.github/workflows/ci.yml) 會跑的項目。
+
+## 常見問題
+
+### 重新編譯後，快捷鍵沒反應、權限卡在「等待中」
+
+通常是簽章換了（例如忘了設 `APPLE_SIGNING_IDENTITY`）。先結束默契，清掉舊的授權紀錄，再重新打開並授權：
+
+```sh
+pkill -f /Applications/Moqi.app/Contents/MacOS/handy || true
+tccutil reset Accessibility tw.yuyin.dictation
+open /Applications/Moqi.app
+```
+
+### 每次裝新版，都跳出鑰匙圈密碼視窗
+
+這是正常的。沒有 Apple 的 Team ID，macOS 會把每個新版本當成不同的程式，第一次讀取存在鑰匙圈裡的 API key 前要你允許一次。默契會在打開時就讀取，所以視窗會在一打開時出現，而不是說話途中。按「永遠允許」即可。
+
+### 內部名稱為什麼是 `handy`、`yuyin`
+
+- `handy`：執行檔名稱沿用 Handy，避免大量改動上游程式碼。
+- `yuyin`（語音）：默契定名前的內部代號。App 識別碼 `tw.yuyin.dictation` 也保留，換掉的話所有人的權限和資料都要重來。
+
+分支的規則見 [FORK.md](FORK.md)。

@@ -1,0 +1,58 @@
+name: 回報問題 Bug report
+description: 默契哪裡壞了、跟預期不一樣
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        謝謝你回報！先看看 [常見問題](https://github.com/DDChen666/moqi/blob/main/docs/使用指南.md#常見問題) 和 [安裝教學](https://github.com/DDChen666/moqi/blob/main/docs/安裝教學-Mac.md)，很多狀況那裡有解法。
+        **請不要貼 API key、錄音或你口述的私人內容。**
+  - type: textarea
+    id: what
+    attributes:
+      label: 發生了什麼
+      description: 你做了什麼、預期會怎樣、實際上怎樣。
+      placeholder: 在 LINE 按住右 Option 說話，放開後沒有貼上，膠囊停在「辨識中」。
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 怎麼重現
+      placeholder: |
+        1. 打開 LINE 的聊天視窗
+        2. 按住右 Option，說一句話
+        3. 放開
+  - type: dropdown
+    id: level
+    attributes:
+      label: 潤飾程度
+      options: [原話, 整理, 潤飾, 不確定]
+  - type: input
+    id: app
+    attributes:
+      label: 在哪個 App 裡打字
+      placeholder: LINE、Claude Code、備忘錄…
+  - type: input
+    id: version
+    attributes:
+      label: 默契版本
+      description: 視窗左下角，或「設定」→「關於默契」
+      placeholder: 1.0.0
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS 版本和機型
+      placeholder: macOS 26.0、MacBook Air M3 16 GB
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: 日誌（選填）
+      description: |
+        「設定」→「關於默契」→「日誌目錄」→ 開啟，附上 `handy.log` 出問題時間附近的幾十行。
+        辨識出的文字在日誌裡已經遮蔽成 [REDACTED]，但貼之前還是看一眼。
+      render: text

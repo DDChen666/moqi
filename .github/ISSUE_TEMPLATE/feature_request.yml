@@ -1,0 +1,24 @@
+name: 建議功能 Feature request
+description: 希望默契多做什麼、改成怎樣
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: 先看看 README 的「接下來」，也許已經在路上了。
+  - type: textarea
+    id: situation
+    attributes:
+      label: 你遇到的情況
+      description: 從情境講起，比直接講功能更有幫助。
+      placeholder: 我常在 Slack 打中英夾雜的技術討論，整理後的標點跟我平常打的不一樣…
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: 你希望怎樣
+  - type: textarea
+    id: privacy
+    attributes:
+      label: 會不會多送出什麼資料
+      description: 默契的原則是聲音不出電腦、送出的東西看得到。如果這個功能需要多送資料，請寫出來。

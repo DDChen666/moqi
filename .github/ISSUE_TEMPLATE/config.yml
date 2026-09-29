@@ -1,14 +1,8 @@
 blank_issues_enabled: false
 contact_links:
-  - name: ✏️ Post-processing / Editing Transcripts
-    url: https://github.com/cjpais/Handy/discussions/168
-    about: Looking to edit, format, or post-process transcripts? Join this discussion
-  - name: ⌨️ Keyboard Shortcuts / Hotkeys
-    url: https://github.com/cjpais/Handy/discussions/211
-    about: Want different keyboard shortcuts or hotkey configurations? Join this discussion
-  - name: 💡 Feature Request or Idea
-    url: https://github.com/cjpais/Handy/discussions
-    about: Please post feature requests and ideas in our Discussions tab
-  - name: 💬 General Discussion
-    url: https://github.com/cjpais/Handy/discussions
-    about: Ask questions and discuss Handy with the community
+  - name: 安裝、權限、快捷鍵沒反應
+    url: https://github.com/DDChen666/moqi/blob/main/docs/安裝教學-Mac.md
+    about: 第一次打開被擋、「已損毀」、按了沒反應，先看安裝教學。
+  - name: 資安問題
+    url: https://github.com/DDChen666/moqi/blob/main/SECURITY.md
+    about: 請不要公開回報資安漏洞，照 SECURITY.md 的方式私下聯絡。

@@ -1,73 +1,19 @@
-## Before Submitting This PR
+## 改了什麼、為什麼
 
-<!--
-HANDY IS UNDERGOING A FEATURE FREEZE. IF YOU ARE SUBMITTING A PR WHICH IS A NEW FEATURE THAT THE COMMUNITY HAS NOT ASKED FOR: PREPARE TO BE REJECTED. IF THE COMMUNITY HAS ASKED FOR IT, OR YOU HAVE EXPLICITLY GATHERED SUPPORT IT MAY STILL BE CONSIDERED.
+<!-- 從使用者遇到的情況講起。修 bug 的話，附上對應的 issue：Fixes #123 -->
 
-BUG FIXES ARE THE TOP PRIORITY. THERE ARE 60+ ISSUES TO FIX.
--->
+## 怎麼驗證
 
-**Please submit only one fix or feature per pull request. Pull requests containing multiple fixes or features will likely be closed.**
+<!-- 跑了哪些測試、手動試了哪些情境（在哪個 App、哪個潤飾程度）。改到畫面的話附截圖。 -->
 
-**Please confirm you have done the following:**
+- [ ] `cargo test --release --lib`（在 `src-tauri/`）
+- [ ] `bun run lint`、`bun x prettier --check .`、`cargo fmt --check`
+- [ ] 改到 Handy 原本的檔案時，改動處標了 `Yuyin fork:`（見 [FORK.md](../FORK.md)）
 
-- [ ] I have searched [existing issues](https://github.com/cjpais/Handy/issues) and [pull requests](https://github.com/cjpais/Handy/pulls) (including closed ones) to ensure this isn't a duplicate
-- [ ] I have read [CONTRIBUTING.md](https://github.com/cjpais/Handy/blob/main/CONTRIBUTING.md)
+## 隱私
 
-**If this is a feature or change that was previously closed/rejected:**
+- [ ] 沒有多送出任何資料；或是多送了，寫在上面並更新了 [docs/隱私.md](../docs/隱私.md)
 
-- [ ] I have explained in the description below why this should be reconsidered
-- [ ] I have gathered community feedback (link to discussion below)
+## AI 協助
 
-## Human Written Description
-
-<!-- Describe your changes clearly and concisely
-
-Please write 2-3 sentences in your own words explaining:
-- What problem you noticed or idea you had
-- Why you think this change matters
-
-This section should be YOUR thinking, not AI-generated text. Even if AI helped write the code, we want to hear from you directly. Your perspective as a human is what makes contributions meaningful. Your PR may be rejected if you do not
-include a human-written description.
--->
-
-## Related Issues/Discussions
-
-<!-- Link to related issues, discussions, or previous PRs -->
-<!-- If reopening something previously closed, explain why this should be reconsidered -->
-
-Fixes #
-Discussion:
-
-## Community Feedback
-
-<!--
-PRs with community support are much more likely to be merged.
-
-For features: Link to a discussion where community members have expressed interest.
-For bug fixes: Link to the issue where others have confirmed the bug.
-
-If you haven't gathered feedback yet, consider starting a discussion first:
-https://github.com/cjpais/Handy/discussions
-
-It is not explicitly required to gather feedback, but it certainly helps your PR get merged.
--->
-
-## Testing
-
-<!-- Describe how you tested your changes and if you need help getting additional testing -->
-
-## Screenshots/Videos (if applicable)
-
-<!-- Add screenshots or videos demonstrating the change -->
-
-## AI Assistance
-
-<!-- AI-assisted PRs are welcome! Just let us know so we can review appropriately. -->
-
-- [ ] No AI was used in this PR
-- [ ] AI was used (please describe below)
-
-**If AI was used:**
-
-- Tools used:
-- How extensively:
+<!-- 用了 AI 工具的話簡單說明（例如「Claude Code 寫初稿，我逐行讀過並測試」）。沒用就刪掉這段。 -->
