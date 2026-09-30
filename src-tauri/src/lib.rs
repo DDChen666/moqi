@@ -1020,6 +1020,11 @@ pub fn run(cli_args: CliArgs) {
                         color: None,
                     });
             }
+            // Yuyin fork: the Windows 11 counterpart, Mica (yuyin/window_look.rs).
+            #[cfg(target_os = "windows")]
+            {
+                win_builder = yuyin::window_look::apply(win_builder);
+            }
 
             if let Some(data_dir) = portable::data_dir() {
                 win_builder = win_builder.data_directory(data_dir.join("webview"));

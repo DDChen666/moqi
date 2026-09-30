@@ -74,7 +74,7 @@ export const MoqiWindow: React.FC<{
 
   return (
     <div dir={i18n.dir()} className="h-screen flex select-none cursor-default">
-      <aside className="w-[200px] shrink-0 h-full flex flex-col border-e border-hairline px-2.5 pb-3.5">
+      <aside className="moqi-sidebar w-[200px] shrink-0 h-full flex flex-col border-e border-hairline px-2.5 pb-3.5">
         <div
           data-tauri-drag-region
           className={`${macTitleBar ? "h-[52px]" : "h-5"} shrink-0`}
