@@ -843,7 +843,8 @@ mod tests {
                 OVERLAY_HEIGHT,
                 OverlayPosition::Bottom,
             ),
-            (3648, 2025, 384, 75)
+            // Yuyin fork: the overlay is 72 px tall (108 at 1.5x), not 50.
+            (3648, 1992, 384, 108)
         );
         assert_eq!(
             windows_overlay_bounds(
@@ -855,7 +856,7 @@ mod tests {
                 OVERLAY_HEIGHT,
                 OverlayPosition::Top,
             ),
-            (3648, 6, 384, 75)
+            (3648, 6, 384, 108)
         );
     }
 
