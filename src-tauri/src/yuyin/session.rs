@@ -167,6 +167,19 @@ pub fn focused_field(pid: i32) -> Option<(String, Option<String>)> {
     platform::focused_field(pid)
 }
 
+/// The executable in the foreground right now, for per-app paste keys.
+#[cfg(target_os = "windows")]
+pub fn frontmost_id() -> Option<String> {
+    platform::frontmost_id()
+}
+
+/// Top-left of the screen the user is typing on (physical pixels), so the
+/// capsule opens there (acceptance criterion 9).
+#[cfg(target_os = "windows")]
+pub fn typing_monitor_origin() -> Option<(i32, i32)> {
+    platform::foreground_monitor_origin()
+}
+
 pub fn context() -> Context {
     CURRENT
         .lock()
@@ -575,9 +588,314 @@ mod platform_tests {
     }
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(target_os = "windows")]
 mod platform {
-    // M2 (Windows) will read the foreground window title instead.
+    //! Foreground window through user32; Windows needs no permission for it.
+    //! The app is the window's executable, lower-cased (`line.exe`) to match
+    //! the lists in `context`; its display name is the executable's version
+    //! description ("LINE"), else the file name without `.exe`.
+
+    use std::collections::HashMap;
+    use std::ffi::c_void;
+    use std::path::Path;
+    use std::sync::Mutex;
+
+    use once_cell::sync::Lazy;
+    use windows::core::{BOOL, PCWSTR, PWSTR};
+    use windows::Win32::Foundation::{CloseHandle, HWND, LPARAM};
+    use windows::Win32::Storage::FileSystem::{
+        GetFileVersionInfoSizeW, GetFileVersionInfoW, VerQueryValueW,
+    };
+    use windows::Win32::System::Threading::{
+        OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32,
+        PROCESS_QUERY_LIMITED_INFORMATION,
+    };
+    use windows::Win32::UI::WindowsAndMessaging::{
+        EnumChildWindows, GetForegroundWindow, GetWindowTextW, GetWindowThreadProcessId,
+    };
+
+    use super::FrontApp;
+
+    /// The foreground top-level window, kept as its handle value: an HWND is
+    /// a plain identifier, safe to hold and compare from any thread.
+    pub struct Window(isize);
+
+    impl Window {
+        pub fn same_as(&self, other: &Window) -> bool {
+            self.0 == other.0
+        }
+    }
+
+    fn pid_of(hwnd: HWND) -> u32 {
+        let mut pid = 0u32;
+        // SAFETY: a stale hwnd makes the call fail and leaves pid at 0.
+        unsafe { GetWindowThreadProcessId(hwnd, Some(&mut pid)) };
+        pid
+    }
+
+    /// Full path of a process's executable. Limited-information access also
+    /// works for elevated processes (an admin terminal).
+    fn image_path(pid: u32) -> Option<String> {
+        // SAFETY: the handle is closed before returning; the buffer outlives
+        // the query and `len` is its capacity in UTF-16 units.
+        unsafe {
+            let process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid).ok()?;
+            let mut buf = [0u16; 1024];
+            let mut len = buf.len() as u32;
+            let result = QueryFullProcessImageNameW(
+                process,
+                PROCESS_NAME_WIN32,
+                PWSTR(buf.as_mut_ptr()),
+                &mut len,
+            );
+            let _ = CloseHandle(process);
+            result.ok()?;
+            Some(String::from_utf16_lossy(&buf[..len as usize]))
+        }
+    }
+
+    fn window_title(hwnd: HWND) -> String {
+        let mut buf = [0u16; 512];
+        // SAFETY: the buffer outlives the call; a stale hwnd returns 0.
+        let len = unsafe { GetWindowTextW(hwnd, &mut buf) };
+        String::from_utf16_lossy(&buf[..len.max(0) as usize])
+    }
+
+    /// Store apps draw inside ApplicationFrameHost's frame, while a child
+    /// window belongs to the app's own process. Report that process, so the
+    /// Store version of an app is recognised like the desktop one.
+    fn hosted_app_pid(frame: HWND, host_pid: u32) -> Option<u32> {
+        struct Search {
+            host: u32,
+            found: u32,
+        }
+        unsafe extern "system" fn visit(child: HWND, lparam: LPARAM) -> BOOL {
+            // SAFETY: lparam points at the `Search` below, alive for the
+            // whole enumeration.
+            let search = unsafe { &mut *(lparam.0 as *mut Search) };
+            let pid = pid_of(child);
+            if pid != 0 && pid != search.host {
+                search.found = pid;
+                return BOOL(0); // stop
+            }
+            BOOL(1)
+        }
+        let mut search = Search {
+            host: host_pid,
+            found: 0,
+        };
+        // SAFETY: the callback only uses `search`, which outlives the call.
+        unsafe {
+            let _ = EnumChildWindows(
+                Some(frame),
+                Some(visit),
+                LPARAM(&mut search as *mut Search as isize),
+            );
+        }
+        (search.found != 0).then_some(search.found)
+    }
+
+    fn wide(s: &str) -> Vec<u16> {
+        s.encode_utf16().chain(std::iter::once(0)).collect()
+    }
+
+    /// The FileDescription of an executable's version resource ("LINE",
+    /// "Visual Studio Code"), in the first language the file lists.
+    pub(super) fn file_description(path: &str) -> Option<String> {
+        let path_w = wide(path);
+        // SAFETY: `data` is sized by the size query and outlives every
+        // VerQueryValueW call, whose out-pointers point into it with `len`
+        // counted in UTF-16 units (strings) or bytes (the translation table).
+        unsafe {
+            let size = GetFileVersionInfoSizeW(PCWSTR(path_w.as_ptr()), None);
+            if size == 0 {
+                return None;
+            }
+            let mut data = vec![0u8; size as usize];
+            GetFileVersionInfoW(
+                PCWSTR(path_w.as_ptr()),
+                None,
+                size,
+                data.as_mut_ptr() as *mut c_void,
+            )
+            .ok()?;
+            let block = data.as_ptr() as *const c_void;
+            let mut ptr: *mut c_void = std::ptr::null_mut();
+            let mut len = 0u32;
+            let mut languages = Vec::new();
+            let translation = wide("\\VarFileInfo\\Translation");
+            if VerQueryValueW(block, PCWSTR(translation.as_ptr()), &mut ptr, &mut len).as_bool()
+                && !ptr.is_null()
+            {
+                let pairs = std::slice::from_raw_parts(ptr as *const u16, (len / 2) as usize);
+                for pair in pairs.chunks_exact(2) {
+                    languages.push(format!("{:04x}{:04x}", pair[0], pair[1]));
+                }
+            }
+            // Common tables for files without a translation list.
+            languages.extend(["040904b0", "040904e4", "000004b0"].map(String::from));
+            for language in languages {
+                let key = wide(&format!("\\StringFileInfo\\{language}\\FileDescription"));
+                if VerQueryValueW(block, PCWSTR(key.as_ptr()), &mut ptr, &mut len).as_bool()
+                    && !ptr.is_null()
+                    && len > 0
+                {
+                    let chars = std::slice::from_raw_parts(ptr as *const u16, len as usize);
+                    let end = chars.iter().position(|&c| c == 0).unwrap_or(chars.len());
+                    let text = String::from_utf16_lossy(&chars[..end]).trim().to_string();
+                    if !text.is_empty() {
+                        return Some(text);
+                    }
+                }
+            }
+            None
+        }
+    }
+
+    static NAMES: Lazy<Mutex<HashMap<String, String>>> = Lazy::new(Default::default);
+
+    /// Shown in the capsule and history; cached per executable.
+    pub(super) fn display_name(path: &str) -> String {
+        if let Some(name) = NAMES.lock().ok().and_then(|m| m.get(path).cloned()) {
+            return name;
+        }
+        // Some apps describe themselves by file name (the Store Notepad says
+        // "Notepad.exe"); show "Notepad" like the fallback would.
+        let described = file_description(path).map(|d| {
+            // `get` is None off a character boundary ("Windows 檔案總管").
+            let cut = d.len().saturating_sub(4);
+            match d.get(cut..) {
+                Some(tail) if tail.eq_ignore_ascii_case(".exe") => d[..cut].to_string(),
+                _ => d,
+            }
+        });
+        let name = described.filter(|d| !d.is_empty()).unwrap_or_else(|| {
+            Path::new(path)
+                .file_stem()
+                .map(|s| s.to_string_lossy().into_owned())
+                .unwrap_or_default()
+        });
+        if let Ok(mut names) = NAMES.lock() {
+            names.insert(path.to_string(), name.clone());
+        }
+        name
+    }
+
+    fn file_name(path: &str) -> String {
+        Path::new(path)
+            .file_name()
+            .map(|s| s.to_string_lossy().to_lowercase())
+            .unwrap_or_default()
+    }
+
+    /// The foreground window's process and executable path.
+    fn foreground() -> Option<(HWND, u32, String)> {
+        // SAFETY: no arguments; returns NULL while no window is foreground.
+        let hwnd = unsafe { GetForegroundWindow() };
+        if hwnd.is_invalid() {
+            return None;
+        }
+        let pid = pid_of(hwnd);
+        if pid == 0 {
+            return None;
+        }
+        let path = image_path(pid)?;
+        if file_name(&path) == "applicationframehost.exe" {
+            if let Some(app_pid) = hosted_app_pid(hwnd, pid) {
+                if let Some(app_path) = image_path(app_pid) {
+                    return Some((hwnd, app_pid, app_path));
+                }
+            }
+        }
+        Some((hwnd, pid, path))
+    }
+
+    /// The foreground app and window. Windows has no system-wide "focused
+    /// text field" to read without UI Automation; the field probe (a
+    /// development tool) simply records nothing here.
+    pub fn focused_field(_pid: i32) -> Option<(String, Option<String>)> {
+        None
+    }
+
+    pub fn frontmost() -> Option<(FrontApp, Option<Window>)> {
+        let (hwnd, pid, path) = foreground()?;
+        Some((
+            FrontApp {
+                bundle_id: file_name(&path),
+                pid: pid as i32,
+                window_title: window_title(hwnd),
+                name: display_name(&path),
+            },
+            Some(Window(hwnd.0 as isize)),
+        ))
+    }
+
+    /// Just the foreground executable (`mintty.exe`), for choosing paste keys.
+    pub fn frontmost_id() -> Option<String> {
+        foreground().map(|(_, _, path)| file_name(&path))
+    }
+
+    /// Top-left corner, in physical pixels, of the screen showing the
+    /// foreground window: where the user is typing.
+    pub fn foreground_monitor_origin() -> Option<(i32, i32)> {
+        use windows::Win32::Graphics::Gdi::{
+            GetMonitorInfoW, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTONULL,
+        };
+        // SAFETY: plain queries; `info` is sized as the API requires.
+        unsafe {
+            let hwnd = GetForegroundWindow();
+            if hwnd.is_invalid() {
+                return None;
+            }
+            let monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONULL);
+            if monitor.is_invalid() {
+                return None;
+            }
+            let mut info = MONITORINFO {
+                cbSize: std::mem::size_of::<MONITORINFO>() as u32,
+                ..Default::default()
+            };
+            GetMonitorInfoW(monitor, &mut info)
+                .as_bool()
+                .then_some((info.rcMonitor.left, info.rcMonitor.top))
+        }
+    }
+}
+
+#[cfg(all(test, target_os = "windows"))]
+mod platform_tests {
+    use super::platform::*;
+
+    #[test]
+    fn describes_executables_by_their_version_info() {
+        let explorer =
+            std::env::var("SystemRoot").unwrap_or_else(|_| "C:\\Windows".into()) + "\\explorer.exe";
+        let name = display_name(&explorer);
+        assert!(!name.is_empty());
+        assert_ne!(name, "explorer", "version info should give a description");
+    }
+
+    #[test]
+    fn falls_back_to_the_file_name() {
+        assert!(file_description("C:\\no\\such\\Tool.exe").is_none());
+        assert_eq!(display_name("C:\\no\\such\\Tool.exe"), "Tool");
+    }
+
+    #[test]
+    fn foreground_query_never_panics() {
+        // A test runner may have no foreground window at all.
+        if let Some((app, window)) = frontmost() {
+            assert!(app.bundle_id.ends_with(".exe"));
+            let window = window.expect("a foreground app has a window");
+            assert!(window.same_as(&window));
+        }
+        let _ = frontmost_id();
+    }
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+mod platform {
+    // Linux is not supported; context is always "other" and focus unchecked.
     use super::FrontApp;
 
     pub struct Window;
