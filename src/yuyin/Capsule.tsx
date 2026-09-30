@@ -237,7 +237,7 @@ export const Capsule: React.FC<CapsuleProps> = ({
               {showCtx && ctx && (
                 <span className="yy-ctx">
                   <ContextIcon context={ctx.context} />
-                  {ctx.app}
+                  <span className="yy-clip">{ctx.app}</span>
                 </span>
               )}
               {handsFree && !showCtx && (
@@ -266,7 +266,9 @@ export const Capsule: React.FC<CapsuleProps> = ({
                       strokeLinejoin="round"
                     />
                   </svg>
-                  {t("overlay.yuyin.sendsTo", { to: ctx.sends_to })}
+                  <span className="yy-clip">
+                    {t("overlay.yuyin.sendsTo", { to: ctx.sends_to })}
+                  </span>
                 </span>
               )}
             </>

@@ -176,6 +176,15 @@
   width: 13px;
   height: 13px;
 }
+/* App names and custom service hosts can be long (Windows names apps by
+   their file description): cut them rather than let the pill outgrow its
+   256 px window, which clipped both ends and hid the name. */
+.yy-clip {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 /* Transparency: where the text goes while tidying, or that nothing left. */
 .yy-dest {
   display: inline-flex;
