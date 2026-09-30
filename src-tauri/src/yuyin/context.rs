@@ -44,8 +44,13 @@ const CHAT_APPS: &[&str] = &[
     "messenger.exe",
     "telegram.exe",
     "whatsapp.exe",
+    "whatsapp.root.exe", // the 2024+ WhatsApp app
     "discord.exe",
+    "discordptb.exe",
+    "discordcanary.exe",
     "slack.exe",
+    "ms-teams.exe", // Teams sends on Enter like the others
+    "teams.exe",    // classic Teams
 ];
 
 const AI_APPS: &[&str] = &[
@@ -62,11 +67,19 @@ const AI_APPS: &[&str] = &[
     "claude.exe",
     "chatgpt.exe",
     "windowsterminal.exe",
+    "openconsole.exe",
+    "conhost.exe",
     "cmd.exe",
     "powershell.exe",
     "pwsh.exe",
     "wezterm-gui.exe",
+    "alacritty.exe",
+    "mintty.exe", // Git Bash, MSYS2, Cygwin
+    "warp.exe",
+    "tabby.exe",
+    "hyper.exe",
     "code.exe",
+    "code - insiders.exe",
     "cursor.exe",
 ];
 
@@ -76,6 +89,8 @@ const NOTES_APPS: &[&str] = &[
     // Windows
     "obsidian.exe",
     "onenote.exe",
+    "onenoteim.exe",       // OneNote for Windows 10 (Store)
+    "microsoft.notes.exe", // Sticky Notes
 ];
 
 const BROWSERS: &[&str] = &[
@@ -91,6 +106,8 @@ const BROWSERS: &[&str] = &[
     "firefox.exe",
     "brave.exe",
     "arc.exe",
+    "vivaldi.exe",
+    "opera.exe",
 ];
 
 /// Web apps are identified by the tab title that browsers put in the window
@@ -213,6 +230,39 @@ mod tests {
             Context::ToAi
         );
         assert_eq!(classify(&app("notepad.exe", "")), Context::Other);
+    }
+
+    #[test]
+    fn windows_apps_and_titles() {
+        for chat in ["whatsapp.root.exe", "discord.exe", "ms-teams.exe"] {
+            assert_eq!(classify(&app(chat, "")), Context::Chat, "{chat}");
+        }
+        for ai in [
+            "mintty.exe",
+            "pwsh.exe",
+            "code.exe",
+            "cursor.exe",
+            "claude.exe",
+        ] {
+            assert_eq!(classify(&app(ai, "")), Context::ToAi, "{ai}");
+        }
+        assert_eq!(classify(&app("onenoteim.exe", "")), Context::Notes);
+        // Edge puts the profile and the other tabs in the title.
+        assert_eq!(
+            classify(&app(
+                "msedge.exe",
+                "Messenger 和另外 3 個頁面 - 個人 - Microsoft​ Edge"
+            )),
+            Context::Chat
+        );
+        assert_eq!(
+            classify(&app("chrome.exe", "Google Keep - Google Chrome")),
+            Context::Notes
+        );
+        assert_eq!(
+            display_name(&app("chrome.exe", "Claude - Google Chrome")),
+            "Claude"
+        );
     }
 
     #[test]
