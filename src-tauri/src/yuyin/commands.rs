@@ -48,8 +48,10 @@ pub fn yuyin_history_meta(
 }
 
 /// History's 重貼: go back to the app the user was in and paste `text` there.
-/// Hiding Moqi hands focus back to the previous app, then the paste follows
-/// the normal path (clipboard restored afterwards).
+/// Hiding Moqi hands focus back to the previous app on macOS; Windows leaves
+/// the hidden window in the foreground, so there we hand focus back
+/// ourselves. Then the paste follows the normal path (clipboard restored
+/// afterwards).
 #[tauri::command]
 #[specta::specta]
 pub async fn yuyin_repaste(app: AppHandle, text: String) -> Result<(), String> {
@@ -62,6 +64,8 @@ pub async fn yuyin_repaste(app: AppHandle, text: String) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
         // Let the window server finish switching the frontmost app.
         std::thread::sleep(std::time::Duration::from_millis(250));
+        #[cfg(target_os = "windows")]
+        super::focus_return::restore();
         let (tx, rx) = std::sync::mpsc::channel();
         let app_for_paste = app.clone();
         app.run_on_main_thread(move || {

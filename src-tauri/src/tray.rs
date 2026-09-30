@@ -654,6 +654,9 @@ pub fn paste_last_transcript(app: &AppHandle) {
     if text.trim().is_empty() {
         return;
     }
+    // The Windows tray menu takes the foreground; give it back first.
+    #[cfg(target_os = "windows")]
+    crate::yuyin::focus_return::restore();
     if let Err(err) = crate::utils::paste(text, app.clone()) {
         error!("Failed to paste last transcript: {}", err);
     }

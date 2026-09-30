@@ -1098,6 +1098,10 @@ pub fn run(cli_args: CliArgs) {
             // dictation after a restart isn't the slow one (yuyin/warmup.rs).
             #[cfg(target_os = "windows")]
             yuyin::warmup::preload_at_launch(&app_handle);
+            // Yuyin fork: remember the user's window for the tray's "paste
+            // last" (yuyin/focus_return.rs). Setup runs on the main thread.
+            #[cfg(target_os = "windows")]
+            yuyin::focus_return::install();
 
             // Secure Input monitor (macOS): detects stuck secure input that
             // silently blocks keyed shortcuts, warns the user, and activates
