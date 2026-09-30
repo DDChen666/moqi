@@ -176,6 +176,19 @@ fn force_overlay_topmost(overlay_window: &tauri::webview::WebviewWindow) {
 }
 
 fn get_monitor_with_cursor(app_handle: &AppHandle) -> Option<tauri::Monitor> {
+    // Yuyin fork: on Windows, the screen showing the window the user types in
+    // (criterion 9); the mouse may rest on another screen. Cursor otherwise.
+    #[cfg(target_os = "windows")]
+    if let Some(origin) = crate::yuyin::session::typing_monitor_origin() {
+        let typing = app_handle.available_monitors().ok().and_then(|monitors| {
+            monitors
+                .into_iter()
+                .find(|m| (m.position().x, m.position().y) == origin)
+        });
+        if typing.is_some() {
+            return typing;
+        }
+    }
     if let Some(mouse_location) = input::get_cursor_position(app_handle) {
         if let Ok(monitors) = app_handle.available_monitors() {
             for monitor in monitors {
