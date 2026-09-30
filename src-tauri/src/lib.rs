@@ -1020,10 +1020,11 @@ pub fn run(cli_args: CliArgs) {
                         color: None,
                     });
             }
-            // Yuyin fork: the Windows 11 counterpart, Mica (yuyin/window_look.rs).
+            // Yuyin fork: on Windows, a size that follows the system text size,
+            // and Mica on Windows 11 (yuyin/window_look.rs).
             #[cfg(target_os = "windows")]
             {
-                win_builder = yuyin::window_look::apply(win_builder);
+                win_builder = yuyin::window_look::apply(app.handle(), win_builder);
             }
 
             if let Some(data_dir) = portable::data_dir() {
