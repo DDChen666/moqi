@@ -977,5 +977,70 @@
       "tryPlaceholder": "按住 {{key}} 說一句話，放開，字就會出現在這裡",
       "tryIdeas": "試試看：中英夾雜說一句，或講錯改口「禮拜三，不對，禮拜四」"
     }
+  },
+  "windows": {
+    "onboarding": {
+      "permissions": {
+        "intro": "按住右邊的 Alt 鍵說話，放開，字就出現在游標上。\n開始之前，需要準備幾件事。"
+      },
+      "ready": {
+        "slogan": "按住右邊的 Alt 鍵，讓默契幫你打字。"
+      }
+    },
+    "settings": {
+      "general": {
+        "shortcut": {
+          "description": "預設是右邊的 Alt 鍵。點右邊的按鍵可以換成別的鍵。",
+          "bindings": {
+            "transcribe": {
+              "description": "預設是右邊的 Alt 鍵。點右邊的按鍵可以換成別的鍵。"
+            }
+          }
+        }
+      },
+      "advanced": {
+        "showTrayIcon": {
+          "description": "在系統匣顯示「默契」的圖示"
+        }
+      },
+      "debug": {
+        "keyboardDiagnostic": {
+          "running": "正在監聽… 請按幾次您的快捷鍵（例如 Alt+Space）"
+        }
+      },
+      "about": {
+        "acknowledgments": {
+          "ggml": {
+            "details": "在這台電腦上跑語音辨識模型的推理引擎（Windows 版透過 Vulkan 用顯示卡）。感謝 Georgi Gerganov 和所有貢獻者。"
+          }
+        }
+      }
+    },
+    "accessibility": {
+      "openSettings": "開啟設定"
+    },
+    "errors": {
+      "micPermissionDenied": {
+        "windows": "到「設定」→「隱私權與安全性」→「麥克風」，打開「麥克風存取」和「允許傳統型應用程式存取您的麥克風」。"
+      }
+    },
+    "yuyin": {
+      "apiKey": {
+        "description": "預設用 DeepSeek。key 存在 Windows 認證管理員，不會寫進任何檔案。",
+        "statusSet": "✓ key 已存在 Windows 認證管理員"
+      }
+    },
+    "moqi": {
+      "history": {
+        "empty": "還沒有紀錄。按住右邊的 Alt 鍵說一句話試試。"
+      },
+      "settings": {
+        "keyStored": "已存在認證管理員",
+        "keySaved": "key 已存進 Windows 認證管理員"
+      },
+      "onboarding": {
+        "keyNote": "key 存在這台電腦的 Windows 認證管理員，不會寫進任何檔案。還沒有 key？"
+      }
+    }
   }
 }

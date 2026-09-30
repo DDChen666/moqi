@@ -977,5 +977,65 @@
       "tryPlaceholder": "Hold {{key}}, say something, let go — it appears here",
       "tryIdeas": "Try mixing languages, or correcting yourself mid-sentence"
     }
+  },
+  "windows": {
+    "onboarding": {
+      "permissions": {
+        "intro": "Hold the right Alt key and speak. Let go, and the text appears at your cursor.\nFirst, a few things to set up."
+      },
+      "ready": {
+        "slogan": "Hold the right Alt key and let Moqi do the typing."
+      }
+    },
+    "settings": {
+      "general": {
+        "shortcut": {
+          "description": "Right Alt by default. Click the key to change it.",
+          "bindings": {
+            "transcribe": {
+              "description": "Right Alt by default. Click the key to change it."
+            }
+          }
+        }
+      },
+      "debug": {
+        "keyboardDiagnostic": {
+          "running": "Listening… press your shortcut a few times (e.g. Alt+Space)"
+        }
+      },
+      "about": {
+        "acknowledgments": {
+          "ggml": {
+            "details": "The inference engine that runs speech recognition on this computer (on the graphics card through Vulkan on Windows). Thanks to Georgi Gerganov and all contributors."
+          }
+        }
+      }
+    },
+    "accessibility": {
+      "openSettings": "Open Settings"
+    },
+    "errors": {
+      "micPermissionDenied": {
+        "windows": "Open Settings → Privacy & security → Microphone and turn on “Microphone access” and “Let desktop apps access your microphone”."
+      }
+    },
+    "yuyin": {
+      "apiKey": {
+        "description": "DeepSeek by default. Stored in Windows Credential Manager, never in a file.",
+        "statusSet": "✓ Key saved in Credential Manager"
+      }
+    },
+    "moqi": {
+      "history": {
+        "empty": "Nothing yet. Hold the right Alt key and say something."
+      },
+      "settings": {
+        "keyStored": "In Credential Manager",
+        "keySaved": "Key saved to Credential Manager"
+      },
+      "onboarding": {
+        "keyNote": "Stored in this computer's Windows Credential Manager, never in a file. No key yet?"
+      }
+    }
   }
 }
