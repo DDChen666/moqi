@@ -1094,6 +1094,10 @@ pub fn run(cli_args: CliArgs) {
             app.manage(TranscriptionCoordinator::new(app_handle.clone()));
 
             initialize_core_logic(&app_handle);
+            // Yuyin fork: load and warm the model now on Windows, so the first
+            // dictation after a restart isn't the slow one (yuyin/warmup.rs).
+            #[cfg(target_os = "windows")]
+            yuyin::warmup::preload_at_launch(&app_handle);
 
             // Secure Input monitor (macOS): detects stuck secure input that
             // silently blocks keyed shortcuts, warns the user, and activates
