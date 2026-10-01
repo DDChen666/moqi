@@ -144,6 +144,34 @@ pub fn display_name(app: &FrontApp) -> String {
     }
 }
 
+/// What a per-app style is saved under (apps.rs): the app, or for a web app
+/// the browser and the site ("com.google.Chrome#Facebook"). The settings list
+/// names that row "Facebook"; keyed by the browser alone, a choice made for it
+/// changed every other tab too.
+pub fn style_key(app: &FrontApp) -> String {
+    match web_app(app) {
+        Some((_, site)) => format!("{}#{site}", app.bundle_id),
+        None => app.bundle_id.clone(),
+    }
+}
+
+/// Password and permission prompts the system puts in front (the Keychain
+/// password sheet, UAC): not somewhere to dictate, so not an app to list.
+pub fn is_system_prompt(app: &FrontApp) -> bool {
+    const PROMPTS: &[&str] = &[
+        "com.apple.SecurityAgent",
+        "com.apple.loginwindow",
+        "com.apple.coreservices.uiagent",
+        "com.apple.UserNotificationCenter",
+        // Windows
+        "consent.exe",
+        "credentialuibroker.exe",
+        "logonui.exe",
+        "lockapp.exe",
+    ];
+    PROMPTS.contains(&app.bundle_id.as_str())
+}
+
 pub fn classify(app: &FrontApp) -> Context {
     let id = app.bundle_id.as_str();
     if CHAT_APPS.contains(&id) {
@@ -190,6 +218,25 @@ mod tests {
             "Keep"
         );
         assert_eq!(display_name(&app("jp.naver.line.mac", "")), "App");
+    }
+
+    #[test]
+    fn a_site_gets_its_own_style_not_the_whole_browser() {
+        let facebook = app("com.google.Chrome", "Facebook - Google Chrome");
+        let other = app("com.google.Chrome", "Hacker News - Google Chrome");
+        assert_eq!(style_key(&facebook), "com.google.Chrome#Facebook");
+        assert_eq!(style_key(&other), "com.google.Chrome");
+        assert_eq!(
+            style_key(&app("jp.naver.line.mac", "")),
+            "jp.naver.line.mac"
+        );
+    }
+
+    #[test]
+    fn system_prompts_are_not_apps() {
+        assert!(is_system_prompt(&app("com.apple.SecurityAgent", "")));
+        assert!(is_system_prompt(&app("consent.exe", "")));
+        assert!(!is_system_prompt(&app("com.apple.Notes", "")));
     }
 
     #[test]

@@ -136,7 +136,7 @@ pub fn begin(app: &AppHandle, pressed: Instant) {
     let cfg = super::config::get(app);
     let style = front
         .as_ref()
-        .and_then(|f| super::apps::style_for(&cfg, &f.bundle_id));
+        .and_then(|f| super::apps::style_for(&cfg, &super::context::style_key(f)));
     let context = style.and_then(|s| s.context).unwrap_or(auto);
     let note = style.map(|s| s.note.clone()).unwrap_or_default();
     let translate_to = super::apps::translate_to(&cfg, style);

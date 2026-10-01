@@ -21,7 +21,8 @@ const KEEP: usize = 30;
 /// The user's choices for one app.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
 pub struct AppStyle {
-    /// Bundle id (macOS) or executable (Windows), as `FrontApp::bundle_id`.
+    /// Bundle id (macOS) or executable (Windows); for a web app, with the
+    /// site: `context::style_key`.
     pub app: String,
     /// The app's name as shown in settings.
     pub name: String,
@@ -64,19 +65,20 @@ fn with_recent<T>(app: &AppHandle, f: impl FnOnce(&mut Vec<RecentApp>) -> T) -> 
 
 /// Remember that the user dictated into `front` (style picked: `auto`).
 pub fn note_used(app: &AppHandle, front: &FrontApp, name: &str, auto: Context) {
-    if front.bundle_id.is_empty() {
+    if front.bundle_id.is_empty() || super::context::is_system_prompt(front) {
         return;
     }
+    let key = super::context::style_key(front);
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_millis() as f64)
         .unwrap_or(0.0);
     let json = with_recent(app, |list| {
-        list.retain(|r| r.app != front.bundle_id);
+        list.retain(|r| r.app != key);
         list.insert(
             0,
             RecentApp {
-                app: front.bundle_id.clone(),
+                app: key.clone(),
                 name: name.to_string(),
                 context: auto,
                 last_used: now,
