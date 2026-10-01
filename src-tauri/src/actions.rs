@@ -850,11 +850,13 @@ impl ShortcutAction for TranscribeAction {
                                     // Simplified output.
                                     let converted = processed.final_text.clone();
                                     if !handy_post_process {
-                                        let polished = crate::yuyin::polish::polish(
-                                            &ah,
-                                            &processed.final_text,
-                                        )
-                                        .await;
+                                        // Yuyin fork: the user's learned corrections,
+                                        // before the clean-up and again after it.
+                                        let corrected =
+                                            crate::yuyin::learn::apply(&ah, &processed.final_text);
+                                        let polished =
+                                            crate::yuyin::polish::polish(&ah, &corrected).await;
+                                        let polished = crate::yuyin::learn::apply(&ah, &polished);
                                         if polished != processed.final_text {
                                             processed.post_processed_text = Some(polished.clone());
                                         }
@@ -927,6 +929,13 @@ impl ShortcutAction for TranscribeAction {
                                     let pasted = result.is_ok() && !copy_only;
                                     if pasted {
                                         crate::yuyin::field_probe::after_paste(
+                                            &ah_clone,
+                                            probe_front.clone(),
+                                            probe_text.clone(),
+                                        );
+                                        // Yuyin fork: learn from the user's corrections
+                                        // (only once they turned it on).
+                                        crate::yuyin::learn::after_paste(
                                             &ah_clone,
                                             probe_front,
                                             probe_text,

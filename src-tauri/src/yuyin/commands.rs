@@ -45,6 +45,20 @@ pub fn yuyin_set_api_key(
     secrets::set_api_key(&key_host(&app, base_url), &key)
 }
 
+/// The corrections learned from the user's edits (dictionary page).
+#[tauri::command]
+#[specta::specta]
+pub fn yuyin_learned(app: AppHandle) -> Vec<super::learn::Rule> {
+    super::learn::rules(&app)
+}
+
+/// Apply a learned correction from now on (`active`), or forget it for good.
+#[tauri::command]
+#[specta::specta]
+pub fn yuyin_set_learned(app: AppHandle, from: String, to: String, active: bool) {
+    super::learn::set_rule(&app, &from, &to, active);
+}
+
 /// OpenRouter's public model catalog for the model picker.
 #[tauri::command]
 #[specta::specta]

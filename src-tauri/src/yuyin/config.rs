@@ -52,6 +52,9 @@ pub struct YuyinConfig {
     pub model: String,
     /// After this, paste the raw transcript instead of waiting.
     pub timeout_ms: u64,
+    /// Learn from the user's corrections after a paste (learn.rs). `None`:
+    /// not asked yet; off until the user says yes (docs/隱私.md).
+    pub learn_from_edits: Option<bool>,
 }
 
 impl Default for YuyinConfig {
@@ -64,6 +67,7 @@ impl Default for YuyinConfig {
             // M0: flash with reasoning off is 0.8 s median; v4-pro is slower and worse.
             model: "deepseek-flash".into(),
             timeout_ms: 5_000,
+            learn_from_edits: None,
         }
     }
 }

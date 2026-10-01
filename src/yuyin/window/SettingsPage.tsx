@@ -190,7 +190,7 @@ const OTHER = "__other";
 /** OpenRouter's model: one we recommend, or any from its catalog. */
 const ModelPicker: React.FC<{
   config: YuyinConfig;
-  save: (c: YuyinConfig) => void;
+  save: Save;
 }> = ({ config, save }) => {
   const { t } = useTranslation();
   const preset = OPENROUTER_PRESETS.find((p) => p.id === config.model);
@@ -213,7 +213,7 @@ const ModelPicker: React.FC<{
   const choose = (id: string) => {
     setBrowsing(false);
     setQuery("");
-    if (id !== config.model) save({ ...config, model: id });
+    if (id !== config.model) save({ model: id });
   };
   const cost = (m?: ModelInfo) =>
     !m
@@ -318,16 +318,18 @@ const ModelPicker: React.FC<{
   );
 };
 
+type Save = (patch: Partial<YuyinConfig>) => void;
+
 const CustomServiceRow: React.FC<{
   config: YuyinConfig;
-  save: (c: YuyinConfig) => void;
+  save: Save;
 }> = ({ config, save }) => {
   const { t } = useTranslation();
   const [baseUrl, setBaseUrl] = useState(config.base_url);
   const [model, setModel] = useState(config.model);
   const commit = () => {
     if (baseUrl !== config.base_url || model !== config.model) {
-      save({ ...config, base_url: baseUrl.trim(), model: model.trim() });
+      save({ base_url: baseUrl.trim(), model: model.trim() });
     }
   };
   return (
@@ -373,10 +375,10 @@ export const SettingsPage: React.FC = () => {
       .catch((e) => console.error(e));
   }, []);
 
-  const save = async (next: YuyinConfig) => {
-    setConfig(next);
+  const save: Save = async (patch) => {
+    setConfig((c) => (c ? { ...c, ...patch } : c));
     try {
-      await yuyinApi.setConfig(next);
+      setConfig(await yuyinApi.updateConfig(patch));
     } catch (e) {
       toast.error(String(e));
     }
@@ -441,7 +443,7 @@ export const SettingsPage: React.FC = () => {
             label={t("moqi.settings.level")}
             value={level}
             disabled={!config || localOnly}
-            onChange={(v) => config && save({ ...config, level: v })}
+            onChange={(v) => config && save({ level: v })}
             options={(["raw", "tidy", "polish"] as Level[]).map((v) => ({
               value: v,
               label: t(`moqi.levels.${v}`),
@@ -473,10 +475,10 @@ export const SettingsPage: React.FC = () => {
               const next = e.target.value as Service;
               save(
                 next === "deepseek"
-                  ? { ...config, service: next, ...DEEPSEEK }
+                  ? { service: next, ...DEEPSEEK }
                   : next === "openrouter"
-                    ? { ...config, service: next, ...OPENROUTER }
-                    : { ...config, service: next },
+                    ? { service: next, ...OPENROUTER }
+                    : { service: next },
               );
             }}
           >
@@ -508,6 +510,23 @@ export const SettingsPage: React.FC = () => {
         {config && service === "custom" && (
           <CustomServiceRow config={config} save={save} />
         )}
+      </Group>
+
+      <Group
+        title={t("moqi.learn.settingsGroup")}
+        footnote={t("moqi.learn.privacy")}
+      >
+        <Row
+          label={t("moqi.learn.title")}
+          description={t("moqi.learn.description")}
+        >
+          <Switch
+            label={t("moqi.learn.title")}
+            checked={config?.learn_from_edits === true}
+            disabled={!config}
+            onChange={(v) => save({ learn_from_edits: v })}
+          />
+        </Row>
       </Group>
 
       <Group title={t("moqi.settings.microphone")}>

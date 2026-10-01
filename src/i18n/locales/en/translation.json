@@ -900,6 +900,24 @@
       "notes": "notes",
       "other": "general"
     },
+    "learn": {
+      "settingsGroup": "Learning",
+      "title": "Learn from my corrections",
+      "description": "When you correct a word Moqi typed and make the same correction twice, Moqi writes it your way from then on.",
+      "privacy": "Compared on this computer only. Only the corrected words are kept (e.g. “Supabsee → Supabase”), never the whole text, and nothing is sent. Password boxes are never read. Turned off, Moqi learns nothing new; manage what it learned on the Dictionary page.",
+      "askTitle": "Let Moqi learn from your corrections?",
+      "askBody": "When you correct a word Moqi typed (say “Supabsee” to “Supabase”), Moqi remembers it on this computer and applies it once you've made the same correction twice. Only the corrected words are kept, never the whole text, and nothing is sent. You can change this in Settings.",
+      "askYes": "Turn on",
+      "askNo": "Not now",
+      "learnedTitle": "Learned corrections",
+      "learnedHint": "Removed ones are never learned again",
+      "applied": "Applied automatically",
+      "seenOnce": "Corrected once; once more and it's applied",
+      "applyNow": "Apply now",
+      "remove": "Remove",
+      "emptyOn": "Nothing yet. Correct a word Moqi typed and it shows up here.",
+      "emptyOff": "Turn on “Learn from my corrections” in Settings, and the words you correct will show up here."
+    },
     "dictionary": {
       "subtitle": "Names, products and terms Moqi mishears. Clean-up spells them exactly like this, capitals included.",
       "placeholder": "Add a word, e.g. Typeless",

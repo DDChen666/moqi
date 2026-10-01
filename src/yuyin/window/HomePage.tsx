@@ -205,6 +205,7 @@ export const HomePage: React.FC<{
   const os = useOsType();
   const { settings } = useSettings();
   const [stats, setStats] = useState<YuyinStats | null>(null);
+  const [learn, setLearn] = useState<boolean | null | undefined>(undefined);
 
   const load = useCallback(() => {
     yuyinApi
@@ -212,6 +213,22 @@ export const HomePage: React.FC<{
       .then(setStats)
       .catch((e) => console.error("Failed to load stats:", e));
   }, []);
+
+  useEffect(() => {
+    yuyinApi
+      .getConfig()
+      .then((c) => setLearn(c.learn_from_edits))
+      .catch(() => {});
+  }, []);
+
+  const answerLearn = async (on: boolean) => {
+    setLearn(on);
+    try {
+      await yuyinApi.updateConfig({ learn_from_edits: on });
+    } catch (e) {
+      console.error("Failed to save the learning choice:", e);
+    }
+  };
 
   useEffect(() => {
     load();
@@ -239,6 +256,36 @@ export const HomePage: React.FC<{
           {t("settings.about.tagline")}
         </p>
       </div>
+
+      {/* Ask once, after a few dictations (docs/隱私.md: off until asked). */}
+      {learn === null && (s?.dictations ?? 0) >= 3 && (
+        <Card className="px-[18px] py-4 flex items-center justify-between gap-5">
+          <div className="flex flex-col gap-1 min-w-0">
+            <h2 className="m-0 text-[13px] font-semibold text-text">
+              {t("moqi.learn.askTitle")}
+            </h2>
+            <p className="m-0 text-[12px] leading-relaxed text-text/80">
+              {t("moqi.learn.askBody")}
+            </p>
+          </div>
+          <div className="flex flex-col gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => answerLearn(true)}
+              className="text-[12px] font-medium px-3.5 py-[5px] rounded-[8px] bg-logo-primary text-white hover:brightness-110"
+            >
+              {t("moqi.learn.askYes")}
+            </button>
+            <button
+              type="button"
+              onClick={() => answerLearn(false)}
+              className="text-[12px] px-3.5 py-[5px] rounded-[8px] bg-fill text-text hover:brightness-95"
+            >
+              {t("moqi.learn.askNo")}
+            </button>
+          </div>
+        </Card>
+      )}
 
       <div className="grid grid-cols-[minmax(0,1fr)_220px] gap-5 items-start">
         <div className="flex flex-col gap-3.5">
