@@ -964,7 +964,9 @@
       "available": "有新版本 {{version}}，點這裡更新",
       "availableShort": "有新版本 {{version}}",
       "install": "更新並重新開啟",
-      "installing": "正在更新… {{percent}}%"
+      "installing": "正在更新… {{percent}}%",
+      "retry": "更新沒有完成，點這裡重試",
+      "installFailed": "更新沒有完成（下載中斷或檔案驗證失敗），舊版本照常可用"
     },
     "learn": {
       "settingsGroup": "學習",

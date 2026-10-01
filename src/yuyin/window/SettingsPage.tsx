@@ -567,10 +567,12 @@ const UpdateRow: React.FC<{
             ? t("moqi.update.installing", { percent: update.percent })
             : update.kind === "failed"
               ? t("moqi.update.failed")
-              : t("moqi.update.description");
+              : update.kind === "installFailed"
+                ? t("moqi.update.installFailed")
+                : t("moqi.update.description");
   return (
     <Row label={t("moqi.update.title")} description={status}>
-      {update.kind === "available" ? (
+      {update.kind === "available" || update.kind === "installFailed" ? (
         <SmallButton onClick={installUpdate}>
           {t("moqi.update.install")}
         </SmallButton>

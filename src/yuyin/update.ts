@@ -13,7 +13,9 @@ export type UpdateState =
   | { kind: "latest" }
   | { kind: "available"; version: string }
   | { kind: "installing"; percent: number }
-  | { kind: "failed"; message: string };
+  | { kind: "failed"; message: string }
+  /** Download or signature check failed; the old version stays. */
+  | { kind: "installFailed"; version: string; message: string };
 
 let state: UpdateState = { kind: "idle" };
 let pending: Update | null = null;
@@ -45,6 +47,7 @@ export async function checkForUpdate(manual = false): Promise<UpdateState> {
 /** Download, install and restart. */
 export async function installUpdate() {
   if (!pending) return;
+  const version = pending.version;
   let total = 0;
   let done = 0;
   set({ kind: "installing", percent: 0 });
@@ -61,7 +64,7 @@ export async function installUpdate() {
     });
     await relaunch();
   } catch (e) {
-    set({ kind: "failed", message: String(e) });
+    set({ kind: "installFailed", version, message: String(e) });
   }
 }
 

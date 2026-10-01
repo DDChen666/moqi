@@ -129,7 +129,9 @@ export const MoqiWindow: React.FC<{
           active={page === "settings"}
           onClick={() => setPage("settings")}
         />
-        {(update.kind === "available" || update.kind === "installing") && (
+        {(update.kind === "available" ||
+          update.kind === "installing" ||
+          update.kind === "installFailed") && (
           <button
             type="button"
             onClick={installUpdate}
@@ -138,7 +140,9 @@ export const MoqiWindow: React.FC<{
           >
             {update.kind === "installing"
               ? t("moqi.update.installing", { percent: update.percent })
-              : t("moqi.update.available", { version: update.version })}
+              : update.kind === "installFailed"
+                ? t("moqi.update.retry")
+                : t("moqi.update.available", { version: update.version })}
           </button>
         )}
         {version && (

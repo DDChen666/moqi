@@ -19,11 +19,15 @@ param(
         if (-not (Test-Path $KeyPath)) { throw "Updater key not found: $KeyPath" }
         . (Join-Path $PSScriptRoot 'env.ps1')
 
-        $env:TAURI_SIGNING_PRIVATE_KEY = (Get-Content $KeyPath -Raw).Trim()
-        if (-not $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD) { $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = '' }
+        # The build runs in Git Bash: PowerShell drops an empty environment
+        # variable, and Tauri then waits for a password the key doesn't have.
+        # MOQI_RELEASE_KEY_PASSWORD, if set, is the key's password.
+        $bash = Join-Path $env:ProgramFiles 'Git\bin\bash.exe'
+        if (-not (Test-Path $bash)) { $bash = (Get-Command bash -ErrorAction Stop).Source }
+        $env:MOQI_RELEASE_KEY = $KeyPath.Replace('\', '/')
         # tauri.updater.conf.json turns on the updater artifacts (.sig) for
         # this build only, so everyday builds don't need the key.
-        bun run tauri build --bundles nsis --config src-tauri/tauri.updater.conf.json
+        & $bash -c 'export TAURI_SIGNING_PRIVATE_KEY="$(cat "$MOQI_RELEASE_KEY")"; export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="${MOQI_RELEASE_KEY_PASSWORD-}"; bun run tauri build --bundles nsis --config src-tauri/tauri.updater.conf.json'
         if ($LASTEXITCODE -ne 0) { throw "tauri build failed ($LASTEXITCODE)" }
 
         $version = (Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
@@ -53,7 +57,7 @@ param(
         Get-ChildItem $out | ForEach-Object { Write-Host "  $($_.Name)" }
         Write-Host "Add the macOS entry to latest.json before publishing (docs/發布新版.md)."
     } finally {
-        Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY -ErrorAction SilentlyContinue
+        Remove-Item Env:MOQI_RELEASE_KEY -ErrorAction SilentlyContinue
         Pop-Location
     }
 }

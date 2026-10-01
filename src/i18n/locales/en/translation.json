@@ -964,7 +964,9 @@
       "available": "Version {{version}} is out — click to update",
       "availableShort": "Version {{version}} is available",
       "install": "Update and restart",
-      "installing": "Updating… {{percent}}%"
+      "installing": "Updating… {{percent}}%",
+      "retry": "Update didn't finish — click to retry",
+      "installFailed": "The update didn't finish (download interrupted or the file failed verification); this version keeps working"
     },
     "learn": {
       "settingsGroup": "Learning",
