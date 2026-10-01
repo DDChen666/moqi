@@ -2,13 +2,17 @@
 //! recognizer outputs Simplified Chinese; OpenCC's `s2twp` converts both the
 //! characters and the vocabulary (界面 → 介面, 软件 → 軟體). It follows the
 //! official 臺, while everyday writing (and every place name people type)
-//! uses 台, so that one character is folded back.
+//! uses 台, so that one character is folded back. Likewise it writes 账 as
+//! 賬 (賬號, 報賬), where Taiwan writes 帳 (帳號, 報帳).
 
 use ferrous_opencc::{config::BuiltinConfig, OpenCC};
 
 pub fn taiwan(text: &str) -> Result<String, String> {
     let converter = OpenCC::from_config(BuiltinConfig::S2twp).map_err(|e| e.to_string())?;
-    Ok(converter.convert(text).replace('臺', "台"))
+    Ok(converter
+        .convert(text)
+        .replace('臺', "台")
+        .replace('賬', "帳"))
 }
 
 #[cfg(test)]
@@ -31,6 +35,10 @@ mod tests {
             "這個軟體的影片功能，預設的記憶體和網路設定"
         );
         assert_eq!(tw("台风天去台湾的平台"), "颱風天去台灣的平台");
+        assert_eq!(
+            tw("我的账号要先报账，再转账结账"),
+            "我的帳號要先報帳，再轉帳結帳"
+        );
     }
 
     #[test]
