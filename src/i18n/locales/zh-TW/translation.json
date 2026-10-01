@@ -832,7 +832,7 @@
     "home": {
       "slogan": "讓默契幫你打字",
       "insights": "洞察",
-      "computedLocally": "全部在這台電腦上計算",
+      "computedLocally": "這些統計在這台電腦上計算",
       "chars": "口述字數",
       "saved": "省下的時間",
       "speed": "說話速度",
@@ -855,7 +855,7 @@
       "appNamesSent": "送出 App 名稱、視窗標題",
       "textSent": "送去潤稿的文字",
       "sentNote": "送到 {{to}} 的只有辨識出的文字和你字典裡的詞。聲音從頭到尾留在這台電腦。",
-      "nothingSent": "到目前為止，什麼都沒有離開這台電腦。",
+      "nothingSent": "到目前為止，你說的話都沒有離開這台電腦。",
       "seeWhatWasSent": "看每一次送出了什麼",
       "savedHint": "和每分鐘打 40 字相比，說話省下的時間"
     },
