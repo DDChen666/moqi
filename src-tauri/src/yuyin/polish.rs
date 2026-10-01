@@ -116,7 +116,7 @@ pub async fn polish(app: &AppHandle, transcript: &str) -> String {
     let cfg = effective(&config::get(app), &extras);
     let context = session::context();
     let (text, outcome) = match run(&cfg, context, &extras, transcript).await {
-        Ok(Some(text)) => (text, PolishOutcome::Ok),
+        Ok(Some(text)) => (taiwan_weeks(app, &extras, text), PolishOutcome::Ok),
         Ok(None) => (transcript.to_string(), PolishOutcome::Skipped),
         Err(e) => {
             warn!("Polish failed, pasting the raw transcript: {e}");
@@ -125,6 +125,18 @@ pub async fn polish(app: &AppHandle, transcript: &str) -> String {
     };
     session::mark_polished(cfg.level, outcome, text.chars().count());
     text
+}
+
+/// The model writes 這周 where Taiwan writes 這週 (wording.rs). Only for
+/// Traditional Chinese output that isn't being translated: 周 is correct in
+/// Simplified Chinese and in Japanese.
+fn taiwan_weeks(app: &AppHandle, extras: &session::Extras, text: String) -> String {
+    let traditional = crate::settings::get_settings(app).selected_language == "zh-Hant";
+    if traditional && extras.translate_to.is_none() {
+        super::wording::weeks(&text)
+    } else {
+        text
+    }
 }
 
 /// For the settings panel's test button: same request as a real dictation
