@@ -56,7 +56,7 @@ Hold the right Option key, speak, let go — the text appears at your cursor. Mo
 
 <img src="docs/media/feature-privacy.png" width="100%" alt="Recognition stays on your Mac; the privacy card shows 0 seconds of audio uploaded">
 
-**Your voice never leaves your computer.** No account, no analytics, no auto-update. The API key lives in the macOS Keychain. In Raw mode, not even text is sent.
+**Your voice never leaves your computer.** No account, no analytics. Updates ask before installing, and the check can be turned off. The API key lives in the macOS Keychain. In Raw mode, not even text is sent.
 
 <br>
 

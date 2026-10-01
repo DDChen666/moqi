@@ -56,7 +56,7 @@ https://github.com/user-attachments/assets/d8b08c03-3a8e-45ee-86c3-d20c30ad6946
 
 <img src="docs/media/feature-privacy.png" width="100%" alt="辨識，全程在本機；隱私卡片顯示上傳的聲音 0 秒">
 
-**聲音不離開你的電腦。** 沒有帳號、沒有追蹤、不會自動更新。API key 存在 macOS 鑰匙圈。選「原話」時，連文字都不會送出。
+**聲音不離開你的電腦。** 沒有帳號、沒有追蹤。有新版本時會先問你，不會自己安裝，也可以關掉檢查。API key 存在 macOS 鑰匙圈。選「原話」時，連文字都不會送出。
 
 <br>
 
