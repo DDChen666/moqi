@@ -250,7 +250,7 @@ export const HomePage: React.FC<{
               parts={[
                 {
                   value: formatCount(s?.chars ?? 0, lang),
-                  unit: t("moqi.unit.chars"),
+                  unit: t("moqi.unit.chars", { count: s?.chars ?? 0 }),
                 },
               ]}
               label={t("moqi.home.chars")}
@@ -287,7 +287,7 @@ export const HomePage: React.FC<{
                     {n}
                   </span>
                   <span className="text-[12px] ms-[3px] text-text">
-                    {t("moqi.unit.days")}
+                    {t("moqi.unit.days", { count: Number(n) })}
                   </span>
                   <div className="text-[11px] text-muted mt-0.5">{label}</div>
                 </div>
@@ -370,7 +370,9 @@ export const HomePage: React.FC<{
                 </span>
                 <span className="text-[13px] font-semibold text-text whitespace-nowrap">
                   {formatCount(s?.privacy.text_sent_chars ?? 0, lang)}{" "}
-                  {t("moqi.unit.chars")}
+                  {t("moqi.unit.chars", {
+                    count: s?.privacy.text_sent_chars ?? 0,
+                  })}
                 </span>
               </div>
               <div className="text-[11px] text-muted leading-relaxed">
