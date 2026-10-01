@@ -17,9 +17,14 @@ import { Card, Kbd } from "./ui";
 import { LockIcon } from "./icons";
 import { durationParts, formatCount, keyLabel, tapKeyLabel } from "./format";
 
-/** api.deepseek.com → DeepSeek; other hosts as they are. */
+/** api.deepseek.com → DeepSeek, openrouter.ai → OpenRouter; other hosts as
+ * they are. */
 export const serviceName = (host: string) =>
-  host.includes("deepseek.com") ? "DeepSeek" : host;
+  host.endsWith("deepseek.com")
+    ? "DeepSeek"
+    : host === "openrouter.ai"
+      ? "OpenRouter"
+      : host;
 
 const Big: React.FC<{ parts: { value: string; unit: string }[] }> = ({
   parts,

@@ -696,6 +696,7 @@ pub fn run(cli_args: CliArgs) {
             yuyin::commands::yuyin_has_api_key,
             yuyin::commands::yuyin_set_api_key,
             yuyin::commands::yuyin_test_polish,
+            yuyin::commands::yuyin_openrouter_models,
             yuyin::commands::yuyin_report_error,
             yuyin::commands::yuyin_stats,
             yuyin::commands::yuyin_history_meta,

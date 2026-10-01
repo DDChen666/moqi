@@ -29,6 +29,18 @@ static CLIENT: Lazy<reqwest::Client> = Lazy::new(|| {
         .unwrap_or_else(|_| reqwest::Client::new())
 });
 
+/// OpenRouter's API, whose requests take a few extra fields (see `run`).
+pub const OPENROUTER_HOST: &str = "openrouter.ai";
+
+fn is_openrouter(cfg: &YuyinConfig) -> bool {
+    host(&cfg.base_url) == OPENROUTER_HOST
+}
+
+/// OpenRouter models that refused to run with reasoning turned off; they get
+/// the lowest effort instead for the rest of the session.
+static MUST_REASON: Lazy<std::sync::Mutex<std::collections::HashSet<String>>> =
+    Lazy::new(Default::default);
+
 fn endpoint(cfg: &YuyinConfig, path: &str) -> String {
     let base = cfg.base_url.trim().trim_end_matches('/');
     // "openrouter.ai/api/v1" typed without a scheme: HTTPS, as the host shown
@@ -145,28 +157,33 @@ async fn run(
         // DeepSeek V4 reasons by default: up to 50 s on long input (M0).
         body["thinking"] = json!({"type": "disabled"});
     }
+    let openrouter = is_openrouter(cfg);
+    if openrouter {
+        // Same reason, for whichever model was picked; and the dictation
+        // waits on the answer, so take the provider that answers first.
+        body["reasoning"] = reasoning_off(&cfg.model);
+        body["provider"] = json!({"sort": "latency"});
+    }
 
-    // Transparency (history, privacy card): what leaves the Mac, and where.
+    // Transparency (history, privacy card): what leaves the computer, and where.
     session::mark_sent(transcript.chars().count(), host(&cfg.base_url));
 
     let started = std::time::Instant::now();
-    let response = CLIENT
-        .post(endpoint(cfg, "/chat/completions"))
-        .bearer_auth(key)
-        .timeout(Duration::from_millis(cfg.timeout_ms))
-        .json(&body)
-        .send()
-        .await
-        .map_err(|e| {
-            if e.is_timeout() {
-                format!("timed out after {} ms", cfg.timeout_ms)
-            } else {
-                format!("request failed: {e}")
-            }
-        })?;
+    let mut response = send(cfg, &key, &body, openrouter).await?;
+    if openrouter && response.status() == reqwest::StatusCode::BAD_REQUEST {
+        let message = error_message(response).await;
+        if !message.to_lowercase().contains("reason") {
+            return Err(format!("HTTP 400: {message}"));
+        }
+        // This model can't switch reasoning off: lowest effort, and remember.
+        warn!("{} needs reasoning: {message}", cfg.model);
+        lock_must_reason().insert(cfg.model.clone());
+        body["reasoning"] = reasoning_off(&cfg.model);
+        response = send(cfg, &key, &body, openrouter).await?;
+    }
     let status = response.status();
     if !status.is_success() {
-        return Err(format!("HTTP {status}"));
+        return Err(format!("HTTP {status}: {}", error_message(response).await));
     }
     let json: serde_json::Value = response
         .json()
@@ -180,6 +197,117 @@ async fn run(
     let text = clean_output(content, context);
     check_output(transcript, &text)?;
     Ok(Some(text))
+}
+
+fn lock_must_reason() -> std::sync::MutexGuard<'static, std::collections::HashSet<String>> {
+    MUST_REASON.lock().unwrap_or_else(|e| e.into_inner())
+}
+
+/// OpenRouter's reasoning setting for `model`: off, or the lowest effort for
+/// models that refused to turn it off.
+fn reasoning_off(model: &str) -> serde_json::Value {
+    if lock_must_reason().contains(model) {
+        json!({"effort": "minimal", "exclude": true})
+    } else {
+        json!({"enabled": false})
+    }
+}
+
+async fn send(
+    cfg: &YuyinConfig,
+    key: &str,
+    body: &serde_json::Value,
+    openrouter: bool,
+) -> Result<reqwest::Response, String> {
+    let mut request = CLIENT
+        .post(endpoint(cfg, "/chat/completions"))
+        .bearer_auth(key)
+        .timeout(Duration::from_millis(cfg.timeout_ms))
+        .json(body);
+    if openrouter {
+        // OpenRouter's app attribution: names Moqi, carries nothing of the user's.
+        request = request
+            .header("HTTP-Referer", "https://github.com/DDChen666/moqi")
+            .header("X-Title", "Moqi");
+    }
+    request.send().await.map_err(|e| {
+        if e.is_timeout() {
+            format!("timed out after {} ms", cfg.timeout_ms)
+        } else {
+            format!("request failed: {e}")
+        }
+    })
+}
+
+/// One model in OpenRouter's catalog, for the settings page's model picker.
+#[derive(Clone, Debug, serde::Serialize, specta::Type)]
+pub struct ModelInfo {
+    pub id: String,
+    pub name: String,
+    /// US$ per million tokens.
+    pub input_price: f64,
+    pub output_price: f64,
+}
+
+/// OpenRouter's public model list (no key, nothing of the user's is sent):
+/// models that read and write text, without the slow `:batch` variants.
+pub async fn openrouter_models() -> Result<Vec<ModelInfo>, String> {
+    let json: serde_json::Value = CLIENT
+        .get(format!("https://{OPENROUTER_HOST}/api/v1/models"))
+        .timeout(Duration::from_secs(15))
+        .send()
+        .await
+        .map_err(|e| format!("request failed: {e}"))?
+        .error_for_status()
+        .map_err(|e| e.to_string())?
+        .json()
+        .await
+        .map_err(|e| format!("bad response: {e}"))?;
+    Ok(parse_models(&json))
+}
+
+fn parse_models(json: &serde_json::Value) -> Vec<ModelInfo> {
+    let per_million = |v: &serde_json::Value| {
+        v.as_str()
+            .and_then(|s| s.parse::<f64>().ok())
+            .map_or(0.0, |p| p * 1e6)
+    };
+    let has_text = |v: &serde_json::Value| {
+        v.as_array()
+            .is_some_and(|a| a.iter().any(|m| m.as_str() == Some("text")))
+    };
+    json["data"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|m| {
+            has_text(&m["architecture"]["input_modalities"])
+                && has_text(&m["architecture"]["output_modalities"])
+        })
+        .filter_map(|m| {
+            let id = m["id"].as_str()?;
+            if id.ends_with(":batch") {
+                return None;
+            }
+            Some(ModelInfo {
+                id: id.to_string(),
+                name: m["name"].as_str().unwrap_or(id).to_string(),
+                input_price: per_million(&m["pricing"]["prompt"]),
+                output_price: per_million(&m["pricing"]["completion"]),
+            })
+        })
+        .collect()
+}
+
+/// The service's own explanation of a failed request (OpenAI-style
+/// `{"error": {"message": …}}`), shortened for the settings page.
+async fn error_message(response: reqwest::Response) -> String {
+    let text = response.text().await.unwrap_or_default();
+    let message = serde_json::from_str::<serde_json::Value>(&text)
+        .ok()
+        .and_then(|v| v["error"]["message"].as_str().map(str::to_string))
+        .unwrap_or(text);
+    message.chars().take(200).collect()
 }
 
 /// Trim whitespace, and never end with a newline: in chat apps a trailing
@@ -263,6 +391,45 @@ mod host_tests {
 }
 
 #[cfg(test)]
+mod openrouter_tests {
+    use super::*;
+
+    #[test]
+    fn model_list_keeps_text_models_without_batch() {
+        let json = json!({"data": [
+            {"id": "~deepseek/deepseek-flash-latest", "name": "DeepSeek Flash Latest",
+             "pricing": {"prompt": "0.00000003", "completion": "0.0000006"},
+             "architecture": {"input_modalities": ["text"], "output_modalities": ["text"]}},
+            {"id": "deepseek/deepseek-v4.1-flash:batch", "name": "batch",
+             "pricing": {"prompt": "0.0000001", "completion": "0.0000003"},
+             "architecture": {"input_modalities": ["text"], "output_modalities": ["text"]}},
+            {"id": "google/some-image-model", "name": "image",
+             "pricing": {"prompt": "0", "completion": "0"},
+             "architecture": {"input_modalities": ["text"], "output_modalities": ["image"]}}
+        ]});
+        let models = parse_models(&json);
+        assert_eq!(models.len(), 1);
+        assert_eq!(models[0].id, "~deepseek/deepseek-flash-latest");
+        assert!((models[0].input_price - 0.03).abs() < 1e-9);
+        assert!((models[0].output_price - 0.6).abs() < 1e-9);
+    }
+
+    #[test]
+    fn openrouter_is_named_in_the_capsule() {
+        assert_eq!(display_name("openrouter.ai"), "OpenRouter");
+        assert_eq!(display_name("api.deepseek.com"), "DeepSeek");
+        assert_eq!(display_name("localhost:11434"), "localhost:11434");
+    }
+
+    #[test]
+    fn reasoning_is_off_until_a_model_refuses() {
+        assert_eq!(reasoning_off("x/model-a"), json!({"enabled": false}));
+        lock_must_reason().insert("x/model-b".into());
+        assert_eq!(reasoning_off("x/model-b")["effort"], "minimal");
+    }
+}
+
+#[cfg(test)]
 mod key_host_tests {
     use super::*;
 
@@ -314,9 +481,16 @@ mod key_host_tests {
 /// when this dictation will not send anything.
 pub fn destination(cfg: &YuyinConfig) -> Option<String> {
     usable_key(cfg)?;
-    if cfg.base_url.contains("deepseek.com") {
-        Some("DeepSeek".into())
+    Some(display_name(&host(&cfg.base_url)))
+}
+
+/// How the capsule names a host: the service's name when we know it.
+fn display_name(host: &str) -> String {
+    if host.ends_with("deepseek.com") {
+        "DeepSeek".into()
+    } else if host == OPENROUTER_HOST {
+        "OpenRouter".into()
     } else {
-        Some(host(&cfg.base_url))
+        host.to_string()
     }
 }

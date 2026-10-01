@@ -45,6 +45,13 @@ pub fn yuyin_set_api_key(
     secrets::set_api_key(&key_host(&app, base_url), &key)
 }
 
+/// OpenRouter's public model catalog for the model picker.
+#[tauri::command]
+#[specta::specta]
+pub async fn yuyin_openrouter_models() -> Result<Vec<polish::ModelInfo>, String> {
+    polish::openrouter_models().await
+}
+
 /// The home page's numbers (all computed locally from the timings log).
 #[tauri::command]
 #[specta::specta]

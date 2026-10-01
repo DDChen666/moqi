@@ -6,8 +6,17 @@ import { invoke } from "@tauri-apps/api/core";
 /** 原話 / 整理 / 潤飾 */
 export type Level = "raw" | "tidy" | "polish";
 
-/** Where the clean-up runs: DeepSeek, any OpenAI-compatible service, or nowhere. */
-export type Service = "deepseek" | "custom" | "none";
+/** Where the clean-up runs: DeepSeek, a model on OpenRouter, any
+ * OpenAI-compatible service, or nowhere. */
+export type Service = "deepseek" | "openrouter" | "custom" | "none";
+
+/** One model in OpenRouter's catalog; prices in US$ per million tokens. */
+export interface ModelInfo {
+  id: string;
+  name: string;
+  input_price: number;
+  output_price: number;
+}
 
 export interface YuyinConfig {
   level: Level;
@@ -63,6 +72,8 @@ export const yuyinApi = {
   setApiKey: (key: string, baseUrl?: string) =>
     invoke<void>("yuyin_set_api_key", { key, baseUrl }),
   testPolish: (text: string) => invoke<string>("yuyin_test_polish", { text }),
+  /** OpenRouter's public catalog (no key needed). */
+  openrouterModels: () => invoke<ModelInfo[]>("yuyin_openrouter_models"),
   stats: () => invoke<YuyinStats>("yuyin_stats"),
   /** Keyed by the history entry's recording file name. */
   historyMeta: () => invoke<Record<string, EntryMeta>>("yuyin_history_meta"),

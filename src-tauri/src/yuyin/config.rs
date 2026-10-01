@@ -32,6 +32,8 @@ pub enum Level {
 pub enum Service {
     /// DeepSeek flash with reasoning off, the M0 pick.
     Deepseek,
+    /// OpenRouter: one key for many providers' models, picked in settings.
+    Openrouter,
     /// Any OpenAI-compatible endpoint at `base_url` / `model`.
     Custom,
     /// Nothing leaves the machine: every level behaves like 原話.

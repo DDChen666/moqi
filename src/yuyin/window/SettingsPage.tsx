@@ -10,7 +10,20 @@ import { useSettings } from "@/hooks/useSettings";
 import { useOsType } from "@/hooks/useOsType";
 import { getSupportedLanguage } from "@/i18n";
 import { applyTheme, THEME_OPTIONS } from "@/lib/utils/theme";
-import { yuyinApi, type Level, type Service, type YuyinConfig } from "../api";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import {
+  yuyinApi,
+  type Level,
+  type ModelInfo,
+  type Service,
+  type YuyinConfig,
+} from "../api";
+import {
+  OPENROUTER,
+  OPENROUTER_PRESETS,
+  costPerThousand,
+  formatCost,
+} from "../openrouter";
 import { YuyinAbout } from "../YuyinAbout";
 import {
   Group,
@@ -30,17 +43,29 @@ const DEEPSEEK = {
   model: "deepseek-flash",
 };
 
+/** Where to get a key, for the services we know. */
+const KEY_PAGES: Partial<Record<Service, { name: string; url: string }>> = {
+  deepseek: { name: "DeepSeek", url: "https://platform.deepseek.com/api_keys" },
+  openrouter: { name: "OpenRouter", url: "https://openrouter.ai/keys" },
+};
+
 /** The key for the service at `baseUrl`: each service has its own, so one
  * provider's key is never sent to another. */
-const ApiKeyRow: React.FC<{ baseUrl: string }> = ({ baseUrl }) => {
+const ApiKeyRow: React.FC<{ baseUrl: string; service: Service }> = ({
+  baseUrl,
+  service,
+}) => {
   const { t } = useTranslation();
+  const keyPage = KEY_PAGES[service];
   const [hasKey, setHasKey] = useState<boolean | null>(null);
   const [editing, setEditing] = useState(false);
   const [key, setKey] = useState("");
   const [testing, setTesting] = useState(false);
-  const [result, setResult] = useState<{ ok: boolean; text: string } | null>(
-    null,
-  );
+  const [result, setResult] = useState<{
+    ok: boolean;
+    text: string;
+    seconds?: string;
+  } | null>(null);
 
   const hasAddress = baseUrl.trim().length > 0;
 
@@ -72,9 +97,11 @@ const ApiKeyRow: React.FC<{ baseUrl: string }> = ({ baseUrl }) => {
   const test = async () => {
     setTesting(true);
     setResult(null);
+    const started = performance.now();
     try {
       const text = await yuyinApi.testPolish(t("yuyin.test.sample"));
-      setResult({ ok: true, text });
+      const seconds = ((performance.now() - started) / 1000).toFixed(1);
+      setResult({ ok: true, text, seconds });
     } catch (e) {
       setResult({ ok: false, text: String(e) });
     } finally {
@@ -93,7 +120,7 @@ const ApiKeyRow: React.FC<{ baseUrl: string }> = ({ baseUrl }) => {
               autoFocus
               onChange={(e) => setKey(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && save()}
-              placeholder="sk-…"
+              placeholder={service === "openrouter" ? "sk-or-…" : "sk-…"}
               aria-label={t("moqi.settings.apiKey")}
               className="w-[220px] !py-1 !text-[12px]"
             />
@@ -136,8 +163,155 @@ const ApiKeyRow: React.FC<{ baseUrl: string }> = ({ baseUrl }) => {
           }`}
         >
           {result.ok
-            ? t("moqi.settings.testResult", { text: result.text })
+            ? t("moqi.settings.testResultTimed", {
+                text: result.text,
+                seconds: result.seconds,
+              })
             : result.text}
+        </div>
+      )}
+      {hasKey === false && keyPage && (
+        <div className="px-3.5 py-2">
+          <button
+            type="button"
+            onClick={() => openUrl(keyPage.url)}
+            className="text-[12px] text-logo-primary hover:underline"
+          >
+            {t("moqi.settings.getKey", { service: keyPage.name })}
+          </button>
+        </div>
+      )}
+    </>
+  );
+};
+
+const OTHER = "__other";
+
+/** OpenRouter's model: one we recommend, or any from its catalog. */
+const ModelPicker: React.FC<{
+  config: YuyinConfig;
+  save: (c: YuyinConfig) => void;
+}> = ({ config, save }) => {
+  const { t } = useTranslation();
+  const preset = OPENROUTER_PRESETS.find((p) => p.id === config.model);
+  const [browsing, setBrowsing] = useState(false);
+  const [models, setModels] = useState<ModelInfo[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [query, setQuery] = useState("");
+
+  // The catalog (and prices) load once the picker is on screen.
+  useEffect(() => {
+    if (models) return;
+    setFailed(false);
+    yuyinApi
+      .openrouterModels()
+      .then(setModels)
+      .catch(() => setFailed(true));
+  }, [models]);
+
+  const showCatalog = browsing || !preset;
+  const choose = (id: string) => {
+    setBrowsing(false);
+    setQuery("");
+    if (id !== config.model) save({ ...config, model: id });
+  };
+  const cost = (m?: ModelInfo) =>
+    !m
+      ? ""
+      : m.input_price === 0 && m.output_price === 0
+        ? t("moqi.settings.modelFree")
+        : t("moqi.settings.costPerThousand", {
+            cost: formatCost(costPerThousand(m)),
+          });
+  const priced = (id: string) => models?.find((m) => m.id === id);
+
+  const q = query.trim().toLowerCase();
+  const matches = (models ?? [])
+    .filter(
+      (m) =>
+        !q ||
+        m.id.toLowerCase().includes(q) ||
+        m.name.toLowerCase().includes(q),
+    )
+    .slice(0, 60);
+
+  return (
+    <>
+      <Row
+        label={t("moqi.settings.model")}
+        htmlFor="moqi-model"
+        description={
+          preset && !browsing
+            ? [
+                t(`moqi.settings.openrouterNotes.${preset.note}`),
+                cost(priced(preset.id)),
+              ]
+                .filter(Boolean)
+                .join("・")
+            : config.model
+        }
+      >
+        <Select
+          id="moqi-model"
+          value={showCatalog ? OTHER : config.model}
+          onChange={(e) =>
+            e.target.value === OTHER
+              ? setBrowsing(true)
+              : choose(e.target.value)
+          }
+        >
+          {OPENROUTER_PRESETS.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+          <option value={OTHER}>{t("moqi.settings.otherModel")}</option>
+        </Select>
+      </Row>
+      {showCatalog && (
+        <div className="px-3.5 py-2.5 flex flex-col gap-2">
+          <TextInput
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t("moqi.settings.searchModels")}
+            aria-label={t("moqi.settings.searchModels")}
+            className="!py-1 !text-[12px]"
+          />
+          {failed ? (
+            <p className="m-0 text-[12px] text-error">
+              {t("moqi.settings.modelsFailed")}
+            </p>
+          ) : !models ? (
+            <p className="m-0 text-[12px] text-muted">
+              {t("moqi.settings.modelsLoading")}
+            </p>
+          ) : (
+            <ul className="m-0 p-0 list-none max-h-[220px] overflow-y-auto flex flex-col">
+              {matches.map((m) => (
+                <li key={m.id}>
+                  <button
+                    type="button"
+                    onClick={() => choose(m.id)}
+                    className={`w-full text-start px-2 py-1.5 rounded-[7px] hover:bg-fill flex justify-between items-baseline gap-3 ${
+                      m.id === config.model ? "bg-fill" : ""
+                    }`}
+                  >
+                    <span className="min-w-0 flex flex-col">
+                      <span className="text-[12px] text-text truncate">
+                        {m.name}
+                      </span>
+                      <span className="text-[11px] text-muted truncate">
+                        {m.id}
+                      </span>
+                    </span>
+                    <span className="text-[11px] text-muted whitespace-nowrap">
+                      {cost(m)}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
     </>
@@ -284,7 +458,9 @@ export const SettingsPage: React.FC = () => {
         footnote={
           localOnly
             ? t("moqi.settings.serviceNoteLocal")
-            : t("moqi.settings.serviceNote")
+            : service === "openrouter"
+              ? t("moqi.settings.serviceNoteOpenrouter")
+              : t("moqi.settings.serviceNote")
         }
       >
         <Row label={t("moqi.settings.serviceLabel")} htmlFor="moqi-service">
@@ -298,12 +474,17 @@ export const SettingsPage: React.FC = () => {
               save(
                 next === "deepseek"
                   ? { ...config, service: next, ...DEEPSEEK }
-                  : { ...config, service: next },
+                  : next === "openrouter"
+                    ? { ...config, service: next, ...OPENROUTER }
+                    : { ...config, service: next },
               );
             }}
           >
             <option value="deepseek">
               {t("moqi.settings.serviceDeepseek")}
+            </option>
+            <option value="openrouter">
+              {t("moqi.settings.serviceOpenrouter")}
             </option>
             <option value="custom">{t("moqi.settings.serviceCustom")}</option>
             <option value="none">{t("moqi.settings.serviceNone")}</option>
@@ -311,12 +492,18 @@ export const SettingsPage: React.FC = () => {
         </Row>
         {!localOnly && (
           <ApiKeyRow
+            service={service}
             baseUrl={
               service === "deepseek"
                 ? DEEPSEEK.base_url
-                : (config?.base_url ?? "")
+                : service === "openrouter"
+                  ? OPENROUTER.base_url
+                  : (config?.base_url ?? "")
             }
           />
+        )}
+        {config && service === "openrouter" && (
+          <ModelPicker config={config} save={save} />
         )}
         {config && service === "custom" && (
           <CustomServiceRow config={config} save={save} />
