@@ -1,4 +1,4 @@
-# Build a signed Windows release of Moqi: the installer, its updater
+﻿# Build a signed Windows release of Moqi: the installer, its updater
 # signature, and the latest.json the app's update check reads. Uploads
 # nothing; publishing the GitHub Release is a manual step (docs/發布新版.md).
 #
@@ -26,9 +26,21 @@ param(
         if (-not (Test-Path $bash)) { $bash = (Get-Command bash -ErrorAction Stop).Source }
         $env:MOQI_RELEASE_KEY = $KeyPath.Replace('\', '/')
         # tauri.updater.conf.json turns on the updater artifacts (.sig) for
-        # this build only, so everyday builds don't need the key.
-        & $bash -c 'export TAURI_SIGNING_PRIVATE_KEY="$(cat "$MOQI_RELEASE_KEY")"; export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="${MOQI_RELEASE_KEY_PASSWORD-}"; bun run tauri build --bundles nsis --config src-tauri/tauri.updater.conf.json'
-        if ($LASTEXITCODE -ne 0) { throw "tauri build failed ($LASTEXITCODE)" }
+        # this build only, so everyday builds don't need the key. The commands
+        # go in a script file: Windows PowerShell strips the quotes from
+        # arguments it passes to bash -c.
+        $script = Join-Path $env:TEMP 'moqi-release-build.sh'
+        $lines = @(
+            'set -e'
+            'export TAURI_SIGNING_PRIVATE_KEY="$(cat "$MOQI_RELEASE_KEY")"'
+            'export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="${MOQI_RELEASE_KEY_PASSWORD-}"'
+            'bun run tauri build --bundles nsis --config src-tauri/tauri.updater.conf.json'
+        )
+        [IO.File]::WriteAllText($script, ($lines -join "`n") + "`n", [Text.UTF8Encoding]::new($false))
+        & $bash $script.Replace('\', '/')
+        $code = $LASTEXITCODE
+        Remove-Item $script -ErrorAction SilentlyContinue
+        if ($code -ne 0) { throw "tauri build failed ($code)" }
 
         $version = (Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
         $name = "Moqi_${version}_x64-setup.exe"
