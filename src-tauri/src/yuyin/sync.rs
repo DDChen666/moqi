@@ -4,8 +4,8 @@
 //! so the cloud client never sees two computers edit one file; each reads
 //! the others' files and merges them, newest change first.
 //!
-//! What syncs: the dictionary, the learned corrections, and the clean-up
-//! settings (level, service, address, model). What doesn't: API keys (each
+//! What syncs: the dictionary, the voice snippets, the learned corrections,
+//! and the clean-up settings (level, service, address, model). What doesn't: API keys (each
 //! computer's keychain), recordings, history, statistics, and the consent to
 //! learn from edits (asked on each computer).
 
@@ -23,6 +23,7 @@ use tauri::{AppHandle, Manager};
 
 use super::config::{self, Level, Service, YuyinConfig};
 use super::learn::{self, Rule};
+use super::snippets::Snippet;
 
 const STATE_FILE: &str = "yuyin_sync.json";
 const SUBFOLDER: &str = "Moqi";
@@ -38,6 +39,14 @@ struct Mark {
     at: f64,
 }
 
+/// A voice snippet's latest state anywhere, by trigger.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+struct SnippetMark {
+    text: String,
+    present: bool,
+    at: f64,
+}
+
 /// The clean-up settings that follow the user from computer to computer.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 struct SharedSettings {
@@ -45,6 +54,8 @@ struct SharedSettings {
     service: Service,
     base_url: String,
     model: String,
+    #[serde(default)]
+    translate_to: Option<String>,
 }
 
 impl SharedSettings {
@@ -54,6 +65,7 @@ impl SharedSettings {
             service: cfg.service,
             base_url: cfg.base_url.clone(),
             model: cfg.model.clone(),
+            translate_to: cfg.translate_to.clone(),
         }
     }
     fn apply_to(&self, cfg: &mut YuyinConfig) {
@@ -61,6 +73,7 @@ impl SharedSettings {
         cfg.service = self.service;
         cfg.base_url = self.base_url.clone();
         cfg.model = self.model.clone();
+        cfg.translate_to = self.translate_to.clone();
     }
 }
 
@@ -87,6 +100,8 @@ struct DeviceFile {
     learned: Vec<Rule>,
     #[serde(default)]
     settings: Option<Stamped<SharedSettings>>,
+    #[serde(default)]
+    snippets: BTreeMap<String, SnippetMark>,
 }
 
 /// This computer's side of the sync, in the app data folder.
@@ -105,6 +120,9 @@ struct State {
     /// The shared settings as of the last sync, to notice local changes.
     #[serde(default)]
     settings: Option<Stamped<SharedSettings>>,
+    /// Every voice snippet this computer knows of, with its latest state.
+    #[serde(default)]
+    snippets: BTreeMap<String, SnippetMark>,
     #[serde(default)]
     last_error: Option<String>,
 }
@@ -200,6 +218,75 @@ fn note_local_vocab(clock: &mut BTreeMap<String, Mark>, vocab: &[String], now: f
             };
         }
     }
+}
+
+/// Record local snippet changes in `clock`, as `note_local_vocab` does for
+/// words: a new or edited snippet is stamped `now`, a removed one becomes
+/// absent; on the first sync the snippets already here count as old.
+fn note_local_snippets(clock: &mut BTreeMap<String, SnippetMark>, snippets: &[Snippet], now: f64) {
+    let added_at = if clock.is_empty() { 0.0 } else { now };
+    for s in snippets {
+        let same = clock
+            .get(&s.trigger)
+            .is_some_and(|m| m.present && m.text == s.text);
+        if !same {
+            clock.insert(
+                s.trigger.clone(),
+                SnippetMark {
+                    text: s.text.clone(),
+                    present: true,
+                    at: added_at,
+                },
+            );
+        }
+    }
+    for (trigger, mark) in clock.iter_mut() {
+        if mark.present && !snippets.iter().any(|s| &s.trigger == trigger) {
+            mark.present = false;
+            mark.at = now;
+        }
+    }
+}
+
+fn merge_snippets<'a>(
+    clocks: impl Iterator<Item = &'a BTreeMap<String, SnippetMark>>,
+) -> BTreeMap<String, SnippetMark> {
+    let mut merged: BTreeMap<String, SnippetMark> = BTreeMap::new();
+    for clock in clocks {
+        for (trigger, mark) in clock {
+            match merged.get(trigger) {
+                Some(have) if have.at >= mark.at => {}
+                _ => {
+                    merged.insert(trigger.clone(), mark.clone());
+                }
+            }
+        }
+    }
+    merged
+}
+
+/// The snippets after merging: local order kept, new ones appended.
+fn apply_snippets(local: &[Snippet], merged: &BTreeMap<String, SnippetMark>) -> Vec<Snippet> {
+    let mut out: Vec<Snippet> = local
+        .iter()
+        .filter_map(|s| match merged.get(&s.trigger) {
+            Some(m) if !m.present => None,
+            Some(m) => Some(Snippet {
+                trigger: s.trigger.clone(),
+                text: m.text.clone(),
+            }),
+            None => Some(s.clone()),
+        })
+        .collect();
+    for (trigger, mark) in merged {
+        if mark.present && !out.iter().any(|s| &s.trigger == trigger) {
+            out.push(Snippet {
+                trigger: trigger.clone(),
+                text: mark.text.clone(),
+            });
+        }
+    }
+    out
 }
 
 /// Newest state of every word across `clocks`.
@@ -302,6 +389,7 @@ fn run(app: &AppHandle, state: &mut State, folder: &str) -> Result<(), String> {
     // What changed here since the last round. A computer joining adopts the
     // settings already in the folder; only later changes here count as new.
     note_local_vocab(&mut state.vocab, &cfg.vocab, now);
+    note_local_snippets(&mut state.snippets, &cfg.snippets, now);
     let shared = SharedSettings::of(&cfg);
     let changed_here = match &state.settings {
         Some(last) => last.value != shared,
@@ -321,9 +409,13 @@ fn run(app: &AppHandle, state: &mut State, folder: &str) -> Result<(), String> {
     let settings =
         newest_settings(std::iter::once(&state.settings).chain(others.iter().map(|o| &o.settings)));
 
+    let snippets =
+        merge_snippets(std::iter::once(&state.snippets).chain(others.iter().map(|o| &o.snippets)));
+
     // Apply here.
     let mut next = cfg.clone();
     next.vocab = apply_vocab(&cfg.vocab, &vocab);
+    next.snippets = apply_snippets(&cfg.snippets, &snippets);
     if let Some(s) = &settings {
         s.value.apply_to(&mut next);
     }
@@ -335,6 +427,7 @@ fn run(app: &AppHandle, state: &mut State, folder: &str) -> Result<(), String> {
         learn::replace_rules(app, rules.clone());
     }
     state.vocab = vocab;
+    state.snippets = snippets;
     state.settings = settings.or_else(|| {
         Some(Stamped {
             at: now,
@@ -351,6 +444,7 @@ fn run(app: &AppHandle, state: &mut State, folder: &str) -> Result<(), String> {
         vocab: state.vocab.clone(),
         learned: rules,
         settings: state.settings.clone(),
+        snippets: state.snippets.clone(),
     };
     let json = serde_json::to_string_pretty(&file).map_err(|e| e.to_string())?;
     // Write then rename, so the cloud client never uploads half a file.
@@ -509,6 +603,38 @@ mod tests {
         assert_eq!(merged.len(), 2);
         assert!(merged.iter().any(|r| r.from == "這周" && !r.active));
         assert!(merged.iter().any(|r| r.from == "表格" && r.active));
+    }
+
+    #[test]
+    fn snippets_merge_by_trigger() {
+        let mine = vec![Snippet {
+            trigger: "我的地址".into(),
+            text: "舊地址".into(),
+        }];
+        let mut here = BTreeMap::new();
+        note_local_snippets(&mut here, &mine, 1.0);
+        let mut mac = BTreeMap::new();
+        mac.insert(
+            "我的地址".to_string(),
+            SnippetMark {
+                text: "新地址".into(),
+                present: true,
+                at: 5.0,
+            },
+        );
+        mac.insert(
+            "我的信箱".to_string(),
+            SnippetMark {
+                text: "me@example.com".into(),
+                present: true,
+                at: 5.0,
+            },
+        );
+        let merged = merge_snippets([&here, &mac].into_iter());
+        let out = apply_snippets(&mine, &merged);
+        assert_eq!(out.len(), 2);
+        assert_eq!(out[0].text, "新地址");
+        assert_eq!(out[1].trigger, "我的信箱");
     }
 
     #[test]

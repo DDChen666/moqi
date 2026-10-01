@@ -8,7 +8,35 @@ export type Level = "raw" | "tidy" | "polish";
 
 /** Where the clean-up runs: DeepSeek, a model on OpenRouter, any
  * OpenAI-compatible service, or nowhere. */
-export type Service = "deepseek" | "openrouter" | "custom" | "none";
+export type Service = "deepseek" | "openrouter" | "custom" | "local" | "none";
+
+export type WritingContext = "chat" | "to_ai" | "notes" | "other";
+
+/** The user's choices for one app (apps.rs). */
+export interface AppStyle {
+  app: string;
+  name: string;
+  /** null: decided automatically. */
+  context: WritingContext | null;
+  note: string;
+  /** null: follow the global language; "": never translate here. */
+  translate_to: string | null;
+}
+
+/** An app the user dictated into recently. */
+export interface RecentApp {
+  app: string;
+  name: string;
+  /** The style Moqi picks automatically. */
+  context: WritingContext;
+  last_used: number;
+}
+
+/** Say the trigger, get the text (snippets.rs). */
+export interface Snippet {
+  trigger: string;
+  text: string;
+}
 
 /** One model in OpenRouter's catalog; prices in US$ per million tokens. */
 export interface ModelInfo {
@@ -27,6 +55,12 @@ export interface YuyinConfig {
   timeout_ms: number;
   /** Learn from the user's corrections; null until they were asked. */
   learn_from_edits: boolean | null;
+  snippets: Snippet[];
+  app_styles: AppStyle[];
+  /** Write every dictation in this language; null: as spoken. */
+  translate_to: string | null;
+  /** With text selected, what the user says edits it. */
+  edit_selection: boolean;
 }
 
 /** Sync through a cloud folder (sync.rs). */
@@ -111,6 +145,10 @@ export const yuyinApi = {
   setApiKey: (key: string, baseUrl?: string) =>
     invoke<void>("yuyin_set_api_key", { key, baseUrl }),
   testPolish: (text: string) => invoke<string>("yuyin_test_polish", { text }),
+  recentApps: () => invoke<RecentApp[]>("yuyin_recent_apps"),
+  /** The models of a server on this computer (Ollama, LM Studio). */
+  localModels: (baseUrl: string) =>
+    invoke<string[]>("yuyin_local_models", { baseUrl }),
   /** OpenRouter's public catalog (no key needed). */
   openrouterModels: () => invoke<ModelInfo[]>("yuyin_openrouter_models"),
   stats: () => invoke<YuyinStats>("yuyin_stats"),

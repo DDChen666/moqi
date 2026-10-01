@@ -749,7 +749,10 @@
       "fallback": "Clean-up didn't finish — pasted the raw text",
       "handsFree": "Hands-free · press to finish",
       "sendsTo": "Text → {{to}}",
-      "allLocal": "All local"
+      "allLocal": "All local",
+      "editSelection": "Editing the selection",
+      "editing": "Editing",
+      "translating": "Translating"
     }
   },
   "secureInput": {
@@ -854,7 +857,7 @@
       "audioUploaded": "Audio uploaded",
       "appNamesSent": "App names, window titles sent",
       "textSent": "Text sent for clean-up",
-      "sentNote": "Only the recognized text and your dictionary words go to {{to}}. Your voice never leaves this computer.",
+      "sentNote": "Only the recognized text, your dictionary words, and the text you selected when editing by voice go to {{to}}. Your voice never leaves this computer.",
       "nothingSent": "So far, nothing you said has left this computer.",
       "seeWhatWasSent": "See what was sent each time",
       "savedHint": "Compared with typing 40 characters a minute"
@@ -898,7 +901,21 @@
       "chat": "chat",
       "to_ai": "to AI",
       "notes": "notes",
-      "other": "general"
+      "other": "general",
+      "groupTitle": "Language and per-app styles",
+      "translateAll": "Translate to",
+      "asSpoken": "As spoken",
+      "followGlobal": "Follow the setting above",
+      "translatesTo": "Translates to {{language}}",
+      "auto": "Automatic ({{style}})",
+      "style": "Style",
+      "language": "Language",
+      "note": "Extra request",
+      "notePlaceholder": "e.g. keep it polite, shorter sentences",
+      "adjust": "Adjust",
+      "done": "Done",
+      "empty": "Apps you dictate into show up here, each with its own style and language.",
+      "footnote": "Translation and extra requests need a clean-up service (not “None”); when translating, even “As spoken” dictations are sent to be translated."
     },
     "sync": {
       "groupTitle": "Sync between computers",
@@ -917,6 +934,37 @@
       "syncing": "Syncing…",
       "failed": "Sync failed: {{error}}",
       "footnote": "Choose a folder in OneDrive, Dropbox, Google Drive or iCloud Drive, and the same folder on your other computer. Your dictionary, learned corrections and clean-up settings sync; API keys, recordings and history don't, and each computer decides on “Learn from my corrections” itself."
+    },
+    "snippets": {
+      "title": "Voice snippets",
+      "hint": "Say exactly the phrase, get the text below",
+      "empty": "No snippets yet. For example: say “my email” to paste your email address.",
+      "triggerPlaceholder": "What you say, e.g. my email",
+      "textPlaceholder": "What gets pasted",
+      "add": "Add snippet",
+      "remove": "Remove"
+    },
+    "editSelection": {
+      "title": "Edit selected text by voice",
+      "description": "Select some text, hold the talk key and say “make it more formal” or “translate to English”; say new text to replace it instead. The selected text is sent to the clean-up service too."
+    },
+    "languages": {
+      "en": "English",
+      "ja": "日本語",
+      "ko": "한국어",
+      "zh-Hans": "Simplified Chinese"
+    },
+    "update": {
+      "title": "Check for updates",
+      "description": "Every 6 hours Moqi asks GitHub for a newer version; it downloads only the version file.",
+      "checkNow": "Check now",
+      "checking": "Checking…",
+      "latest": "You have the latest version",
+      "failed": "No version information found. Try again later.",
+      "available": "Version {{version}} is out — click to update",
+      "availableShort": "Version {{version}} is available",
+      "install": "Update and restart",
+      "installing": "Updating… {{percent}}%"
     },
     "learn": {
       "settingsGroup": "Learning",
@@ -963,8 +1011,14 @@
       "serviceCustom": "Another OpenAI-compatible service",
       "serviceNone": "None (all local)",
       "serviceOpenrouter": "OpenRouter (choose a model)",
-      "serviceNote": "Only the recognized text and your dictionary words are sent. Which app you're in is judged on this computer; only a label like “style: chat” goes out.",
-      "serviceNoteOpenrouter": "OpenRouter passes the text to the company behind the model you pick (for example DeepSeek, Google or OpenAI). Only the recognized text and your dictionary words are sent; which app you're in is judged on this computer.",
+      "serviceLocal": "A model on this computer (Ollama, LM Studio)",
+      "serviceNoteLocalModel": "Text only goes to a model on this computer: nothing leaves it, and no key is needed. Speed depends on your computer; the first clean-up waits for the model to load.",
+      "localRefresh": "Refresh",
+      "localNotFound": "No model server found on this computer. Install and open Ollama, then download a model (for example, run ollama pull qwen3:8b in a terminal).",
+      "localNoModels": "Ollama has no models yet. Download one (for example, run ollama pull qwen3:8b in a terminal).",
+      "localGetOllama": "Get Ollama",
+      "serviceNote": "Only the recognized text, your dictionary words, and the text you selected when editing by voice are sent. Which app you're in is judged on this computer; only a label like “style: chat” goes out.",
+      "serviceNoteOpenrouter": "OpenRouter passes the text to the company behind the model you pick (for example DeepSeek, Google or OpenAI). Only the recognized text, your dictionary words, and the text you selected when editing by voice are sent; which app you're in is judged on this computer.",
       "serviceNoteLocal": "All local: offline, no key needed. The level stays at “As spoken”.",
       "apiKey": "API key",
       "save": "Save",

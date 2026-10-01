@@ -1,7 +1,13 @@
 // Yuyin fork: every setting Moqi has — shortcut, clean-up level, clean-up
 // service and key, microphone, general — plus About. Handy's other settings
 // keep the defaults written by yuyin/defaults.rs.
-import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { ShortcutInput } from "@/components/settings/ShortcutInput";
@@ -11,11 +17,15 @@ import { useOsType } from "@/hooks/useOsType";
 import { getSupportedLanguage } from "@/i18n";
 import { applyTheme, THEME_OPTIONS } from "@/lib/utils/theme";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { checkForUpdate, installUpdate, useUpdateState } from "../update";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   yuyinApi,
+  type AppStyle,
   type Level,
   type ModelInfo,
+  type RecentApp,
+  type WritingContext,
   type Service,
   type SyncStatus,
   type YuyinConfig,
@@ -43,6 +53,12 @@ import { tapKeyLabel } from "./format";
 const DEEPSEEK = {
   base_url: "https://api.deepseek.com",
   model: "deepseek-flash",
+};
+
+/** Ollama's address; LM Studio users change the port to 1234. */
+const LOCAL = {
+  base_url: "http://localhost:11434/v1",
+  model: "",
 };
 
 /** Where to get a key, for the services we know. */
@@ -285,6 +301,293 @@ const SyncGroup: React.FC = () => {
         </Row>
       )}
     </Group>
+  );
+};
+
+/** A model server on this computer: its address and the model to use,
+ * picked from what the server offers. */
+const LocalModelRow: React.FC<{ config: YuyinConfig; save: Save }> = ({
+  config,
+  save,
+}) => {
+  const { t } = useTranslation();
+  const [baseUrl, setBaseUrl] = useState(config.base_url);
+  const [models, setModels] = useState<string[] | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  const load = useCallback(() => {
+    setFailed(false);
+    setModels(null);
+    yuyinApi
+      .localModels(config.base_url)
+      .then(setModels)
+      .catch(() => setFailed(true));
+  }, [config.base_url]);
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  // The first model the server offers, once there is one and none is chosen.
+  useEffect(() => {
+    if (models && models.length > 0 && !config.model)
+      save({ model: models[0] });
+  }, [models, config.model, save]);
+
+  return (
+    <>
+      <Row label={t("moqi.settings.endpoint")} htmlFor="moqi-base-url">
+        <TextInput
+          id="moqi-base-url"
+          value={baseUrl}
+          onChange={(e) => setBaseUrl(e.target.value)}
+          onBlur={() =>
+            baseUrl.trim() !== config.base_url &&
+            save({ base_url: baseUrl.trim(), model: "" })
+          }
+          placeholder={LOCAL.base_url}
+          className="w-[220px] !py-1 !text-[12px]"
+        />
+        <SmallButton onClick={load}>
+          {t("moqi.settings.localRefresh")}
+        </SmallButton>
+      </Row>
+      <Row
+        label={t("moqi.settings.model")}
+        htmlFor="moqi-local-model"
+        description={
+          failed
+            ? t("moqi.settings.localNotFound")
+            : models && models.length === 0
+              ? t("moqi.settings.localNoModels")
+              : undefined
+        }
+      >
+        {failed || (models && models.length === 0) ? (
+          <SmallButton onClick={() => openUrl("https://ollama.com/download")}>
+            {t("moqi.settings.localGetOllama")}
+          </SmallButton>
+        ) : (
+          <Select
+            id="moqi-local-model"
+            value={config.model}
+            disabled={!models}
+            onChange={(e) => save({ model: e.target.value })}
+          >
+            {(models ?? (config.model ? [config.model] : [])).map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
+          </Select>
+        )}
+      </Row>
+    </>
+  );
+};
+
+/** Output languages the clean-up can write in (prompt.rs language_name). */
+const LANGUAGES = ["en", "ja", "ko", "zh-Hans"];
+const STYLES: WritingContext[] = ["chat", "to_ai", "notes", "other"];
+
+/** One app's style, extra instruction and language. */
+const AppStyleEditor: React.FC<{
+  recent: RecentApp;
+  style: AppStyle | undefined;
+  onChange: (style: AppStyle | null) => void;
+}> = ({ recent, style, onChange }) => {
+  const { t } = useTranslation();
+  const current: AppStyle = style ?? {
+    app: recent.app,
+    name: recent.name,
+    context: null,
+    note: "",
+    translate_to: null,
+  };
+  const [note, setNote] = useState(current.note);
+  const set = (patch: Partial<AppStyle>) => {
+    const next = { ...current, ...patch };
+    const plain =
+      next.context === null && !next.note.trim() && next.translate_to === null;
+    onChange(plain ? null : next);
+  };
+  return (
+    <div className="px-3.5 pb-3 pt-1 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 items-center">
+      <span className="text-[12px] text-muted">{t("moqi.styles.style")}</span>
+      <Select
+        value={current.context ?? ""}
+        onChange={(e) =>
+          set({ context: (e.target.value || null) as WritingContext | null })
+        }
+        className="justify-self-start"
+      >
+        <option value="">
+          {t("moqi.styles.auto", { style: t(`moqi.styles.${recent.context}`) })}
+        </option>
+        {STYLES.map((s) => (
+          <option key={s} value={s}>
+            {t(`moqi.styles.${s}`)}
+          </option>
+        ))}
+      </Select>
+      <span className="text-[12px] text-muted">
+        {t("moqi.styles.language")}
+      </span>
+      <Select
+        value={current.translate_to ?? "__global"}
+        onChange={(e) =>
+          set({
+            translate_to: e.target.value === "__global" ? null : e.target.value,
+          })
+        }
+        className="justify-self-start"
+      >
+        <option value="__global">{t("moqi.styles.followGlobal")}</option>
+        <option value="">{t("moqi.styles.asSpoken")}</option>
+        {LANGUAGES.map((l) => (
+          <option key={l} value={l}>
+            {t(`moqi.languages.${l}`)}
+          </option>
+        ))}
+      </Select>
+      <span className="text-[12px] text-muted">{t("moqi.styles.note")}</span>
+      <TextInput
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        onBlur={() => note !== current.note && set({ note })}
+        placeholder={t("moqi.styles.notePlaceholder")}
+        className="!py-1 !text-[12px]"
+      />
+    </div>
+  );
+};
+
+/** The output language, and per-app styles for the apps used recently. */
+const StylesGroup: React.FC<{ config: YuyinConfig; save: Save }> = ({
+  config,
+  save,
+}) => {
+  const { t } = useTranslation();
+  const [recent, setRecent] = useState<RecentApp[] | null>(null);
+  const [open, setOpen] = useState<string | null>(null);
+  useEffect(() => {
+    yuyinApi
+      .recentApps()
+      .then(setRecent)
+      .catch((e) => console.error("Failed to load recent apps:", e));
+  }, []);
+
+  const styleOf = (app: string) => config.app_styles.find((s) => s.app === app);
+  const setStyle = (app: string, style: AppStyle | null) =>
+    save({
+      app_styles: [
+        ...config.app_styles.filter((s) => s.app !== app),
+        ...(style ? [style] : []),
+      ],
+    });
+  const summary = (r: RecentApp) => {
+    const s = styleOf(r.app);
+    if (!s)
+      return t("moqi.styles.auto", { style: t(`moqi.styles.${r.context}`) });
+    return [
+      s.context
+        ? t(`moqi.styles.${s.context}`)
+        : t("moqi.styles.auto", { style: t(`moqi.styles.${r.context}`) }),
+      s.translate_to === ""
+        ? t("moqi.styles.asSpoken")
+        : s.translate_to
+          ? t("moqi.styles.translatesTo", {
+              language: t(`moqi.languages.${s.translate_to}`),
+            })
+          : "",
+      s.note.trim(),
+    ]
+      .filter(Boolean)
+      .join("・");
+  };
+
+  return (
+    <Group
+      title={t("moqi.styles.groupTitle")}
+      footnote={t("moqi.styles.footnote")}
+    >
+      <Row label={t("moqi.styles.translateAll")} htmlFor="moqi-translate">
+        <Select
+          id="moqi-translate"
+          value={config.translate_to ?? ""}
+          onChange={(e) => save({ translate_to: e.target.value || null })}
+        >
+          <option value="">{t("moqi.styles.asSpoken")}</option>
+          {LANGUAGES.map((l) => (
+            <option key={l} value={l}>
+              {t(`moqi.languages.${l}`)}
+            </option>
+          ))}
+        </Select>
+      </Row>
+      {recent && recent.length === 0 && (
+        <p className="m-0 px-3.5 py-2.5 text-[12px] text-muted">
+          {t("moqi.styles.empty")}
+        </p>
+      )}
+      {recent?.map((r) => (
+        <div key={r.app}>
+          <Row label={r.name || r.app} description={summary(r)}>
+            <SmallButton onClick={() => setOpen(open === r.app ? null : r.app)}>
+              {open === r.app ? t("moqi.styles.done") : t("moqi.styles.adjust")}
+            </SmallButton>
+          </Row>
+          {open === r.app && (
+            <AppStyleEditor
+              recent={r}
+              style={styleOf(r.app)}
+              onChange={(s) => setStyle(r.app, s)}
+            />
+          )}
+        </div>
+      ))}
+    </Group>
+  );
+};
+
+/** Check for updates automatically, or now. */
+const UpdateRow: React.FC<{
+  enabled: boolean;
+  setEnabled: (v: boolean) => void;
+}> = ({ enabled, setEnabled }) => {
+  const { t } = useTranslation();
+  const update = useUpdateState();
+  const status =
+    update.kind === "checking"
+      ? t("moqi.update.checking")
+      : update.kind === "latest"
+        ? t("moqi.update.latest")
+        : update.kind === "available"
+          ? t("moqi.update.availableShort", { version: update.version })
+          : update.kind === "installing"
+            ? t("moqi.update.installing", { percent: update.percent })
+            : update.kind === "failed"
+              ? t("moqi.update.failed")
+              : t("moqi.update.description");
+  return (
+    <Row label={t("moqi.update.title")} description={status}>
+      {update.kind === "available" ? (
+        <SmallButton onClick={installUpdate}>
+          {t("moqi.update.install")}
+        </SmallButton>
+      ) : (
+        <SmallButton
+          onClick={() => checkForUpdate(true)}
+          disabled={update.kind === "checking" || update.kind === "installing"}
+        >
+          {t("moqi.update.checkNow")}
+        </SmallButton>
+      )}
+      <Switch
+        label={t("moqi.update.title")}
+        checked={enabled}
+        onChange={setEnabled}
+      />
+    </Row>
   );
 };
 
@@ -556,6 +859,17 @@ export const SettingsPage: React.FC = () => {
             {t(`moqi.settings.levelNote.${level}`)}
           </p>
         </div>
+        <Row
+          label={t("moqi.editSelection.title")}
+          description={t("moqi.editSelection.description")}
+        >
+          <Switch
+            label={t("moqi.editSelection.title")}
+            checked={config?.edit_selection === true}
+            disabled={!config}
+            onChange={(v) => save({ edit_selection: v })}
+          />
+        </Row>
       </Group>
 
       <Group
@@ -565,7 +879,9 @@ export const SettingsPage: React.FC = () => {
             ? t("moqi.settings.serviceNoteLocal")
             : service === "openrouter"
               ? t("moqi.settings.serviceNoteOpenrouter")
-              : t("moqi.settings.serviceNote")
+              : service === "local"
+                ? t("moqi.settings.serviceNoteLocalModel")
+                : t("moqi.settings.serviceNote")
         }
       >
         <Row label={t("moqi.settings.serviceLabel")} htmlFor="moqi-service">
@@ -581,7 +897,9 @@ export const SettingsPage: React.FC = () => {
                   ? { service: next, ...DEEPSEEK }
                   : next === "openrouter"
                     ? { service: next, ...OPENROUTER }
-                    : { service: next },
+                    : next === "local"
+                      ? { service: next, ...LOCAL }
+                      : { service: next },
               );
             }}
           >
@@ -591,11 +909,12 @@ export const SettingsPage: React.FC = () => {
             <option value="openrouter">
               {t("moqi.settings.serviceOpenrouter")}
             </option>
+            <option value="local">{t("moqi.settings.serviceLocal")}</option>
             <option value="custom">{t("moqi.settings.serviceCustom")}</option>
             <option value="none">{t("moqi.settings.serviceNone")}</option>
           </Select>
         </Row>
-        {!localOnly && (
+        {!localOnly && service !== "local" && (
           <ApiKeyRow
             service={service}
             baseUrl={
@@ -610,10 +929,15 @@ export const SettingsPage: React.FC = () => {
         {config && service === "openrouter" && (
           <ModelPicker config={config} save={save} />
         )}
+        {config && service === "local" && (
+          <LocalModelRow config={config} save={save} />
+        )}
         {config && service === "custom" && (
           <CustomServiceRow config={config} save={save} />
         )}
       </Group>
+
+      {config && <StylesGroup config={config} save={save} />}
 
       <Group
         title={t("moqi.learn.settingsGroup")}
@@ -656,6 +980,10 @@ export const SettingsPage: React.FC = () => {
             onChange={(v) => updateSetting("autostart_enabled", v)}
           />
         </Row>
+        <UpdateRow
+          enabled={settings?.update_checks_enabled ?? false}
+          setEnabled={(v) => updateSetting("update_checks_enabled", v)}
+        />
         <Row label={t("moqi.settings.language")} htmlFor="moqi-language">
           <Select
             id="moqi-language"

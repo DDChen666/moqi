@@ -849,7 +849,23 @@ impl ShortcutAction for TranscribeAction {
                                     // Chinese text before clean-up, not the engine's
                                     // Simplified output.
                                     let converted = processed.final_text.clone();
-                                    if !handy_post_process {
+                                    let cfg = crate::yuyin::config::get(&ah);
+                                    let snippet = crate::yuyin::snippets::expand(
+                                        &cfg.snippets,
+                                        &processed.final_text,
+                                    )
+                                    .map(str::to_string);
+                                    if let Some(text) = snippet {
+                                        // Yuyin fork: a voice snippet is pasted as
+                                        // written, without the clean-up.
+                                        crate::yuyin::session::mark_polished(
+                                            cfg.level,
+                                            crate::yuyin::session::PolishOutcome::Skipped,
+                                            text.chars().count(),
+                                        );
+                                        processed.post_processed_text = Some(text.clone());
+                                        processed.final_text = text;
+                                    } else if !handy_post_process {
                                         // Yuyin fork: the user's learned corrections,
                                         // before the clean-up and again after it.
                                         let corrected =

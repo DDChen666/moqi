@@ -15,6 +15,7 @@
 //!    still safe; if the user switched windows we copy instead.
 
 pub mod app_menu;
+pub mod apps;
 pub mod chunker;
 pub mod commands;
 pub mod config;
@@ -30,6 +31,7 @@ pub mod prompt;
 pub mod replay;
 pub mod secrets;
 pub mod session;
+pub mod snippets;
 pub mod stats;
 pub mod sync;
 #[cfg(target_os = "windows")]

@@ -22,6 +22,10 @@ interface ContextEvent {
   hands_free: boolean;
   /** Where this dictation's text goes ("DeepSeek"); null: nothing leaves. */
   sends_to: string | null;
+  /** What the user says edits the text they selected. */
+  editing: boolean;
+  /** The text will be written in another language. */
+  translating: boolean;
 }
 
 const BARS = 13;
@@ -190,7 +194,10 @@ export const Capsule: React.FC<CapsuleProps> = ({
   const working = state === "transcribing" || state === "processing";
   const showTimer = recording && elapsed >= TIMER_AFTER_S;
   const handsFree = recording && ctx?.hands_free === true;
-  const showCtx = recording && intro && ctx !== null && ctx.app.length > 0;
+  // The app's name shows briefly; "editing the selection" stays, so the user
+  // knows what they say will replace it.
+  const showCtx =
+    recording && ctx !== null && (ctx.editing || (intro && ctx.app.length > 0));
 
   // Morph the width: measure the content, then spring the capsule to it.
   useLayoutEffect(() => {
@@ -237,7 +244,9 @@ export const Capsule: React.FC<CapsuleProps> = ({
               {showCtx && ctx && (
                 <span className="yy-ctx">
                   <ContextIcon context={ctx.context} />
-                  <span className="yy-clip">{ctx.app}</span>
+                  <span className="yy-clip">
+                    {ctx.editing ? t("overlay.yuyin.editSelection") : ctx.app}
+                  </span>
                 </span>
               )}
               {handsFree && !showCtx && (
@@ -251,7 +260,11 @@ export const Capsule: React.FC<CapsuleProps> = ({
               <span className="yy-line" />
               {polishing && (
                 <span className="yy-status">
-                  {t("overlay.yuyin.polishing")}
+                  {ctx?.editing
+                    ? t("overlay.yuyin.editing")
+                    : ctx?.translating
+                      ? t("overlay.yuyin.translating")
+                      : t("overlay.yuyin.polishing")}
                 </span>
               )}
               {polishing && ctx?.sends_to && (

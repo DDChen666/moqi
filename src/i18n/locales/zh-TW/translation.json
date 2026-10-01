@@ -746,7 +746,10 @@
       "fallback": "潤稿沒有完成，已貼上原文",
       "handsFree": "免持・再按一下結束",
       "sendsTo": "文字 → {{to}}",
-      "allLocal": "全程本機"
+      "allLocal": "全程本機",
+      "editSelection": "改寫選取的文字",
+      "editing": "改寫中",
+      "translating": "翻譯中"
     }
   },
   "whatsNew": {
@@ -854,7 +857,7 @@
       "audioUploaded": "上傳的聲音",
       "appNamesSent": "送出 App 名稱、視窗標題",
       "textSent": "送去潤稿的文字",
-      "sentNote": "送到 {{to}} 的只有辨識出的文字和你字典裡的詞。聲音從頭到尾留在這台電腦。",
+      "sentNote": "送到 {{to}} 的只有辨識出的文字、你字典裡的詞，以及你用說的修改時選取的文字。聲音從頭到尾留在這台電腦。",
       "nothingSent": "到目前為止，你說的話都沒有離開這台電腦。",
       "seeWhatWasSent": "看每一次送出了什麼",
       "savedHint": "和每分鐘打 40 字相比，說話省下的時間"
@@ -898,7 +901,21 @@
       "chat": "聊天",
       "to_ai": "給 AI",
       "notes": "筆記",
-      "other": "一般"
+      "other": "一般",
+      "groupTitle": "語言與各 App 的風格",
+      "translateAll": "翻譯成",
+      "asSpoken": "照說的語言",
+      "followGlobal": "跟隨上面的設定",
+      "translatesTo": "翻譯成{{language}}",
+      "auto": "自動（{{style}}）",
+      "style": "風格",
+      "language": "語言",
+      "note": "額外要求",
+      "notePlaceholder": "例如：用敬語、句子短一點",
+      "adjust": "調整",
+      "done": "完成",
+      "empty": "用默契打過字的 App 會列在這裡，可以分別設定風格和語言。",
+      "footnote": "翻譯和額外要求要用潤稿服務才會生效（選「不使用」時不會）；翻譯時，原話也會先送去翻譯。"
     },
     "sync": {
       "groupTitle": "在電腦之間同步",
@@ -917,6 +934,37 @@
       "syncing": "同步中…",
       "failed": "同步失敗：{{error}}",
       "footnote": "選 OneDrive、Dropbox、Google Drive 或 iCloud 雲端硬碟裡的一個資料夾，在另一台電腦也選同一個。會同步字典、學到的改法和潤稿設定；API key、錄音和歷史紀錄不會同步，「從我的修改學習」也由每台電腦各自決定。"
+    },
+    "snippets": {
+      "title": "語音片語",
+      "hint": "整句話剛好是這幾個字，就貼上下面的內容",
+      "empty": "還沒有片語。例如：說「我的信箱」，就貼上你的 email。",
+      "triggerPlaceholder": "要說的話，例如：我的信箱",
+      "textPlaceholder": "要貼上的內容",
+      "add": "加入片語",
+      "remove": "刪除"
+    },
+    "editSelection": {
+      "title": "選取文字時，用說的修改它",
+      "description": "選取一段字，按住說話鍵說「改正式一點」「翻成英文」就改好；直接說新內容則會取代它。選取的文字會一起送給潤稿服務。"
+    },
+    "languages": {
+      "en": "English",
+      "ja": "日本語",
+      "ko": "한국어",
+      "zh-Hans": "簡體中文"
+    },
+    "update": {
+      "title": "自動檢查更新",
+      "description": "每 6 小時到 GitHub 看一次有沒有新版本，只下載版本資訊。",
+      "checkNow": "立即檢查",
+      "checking": "檢查中…",
+      "latest": "已經是最新版本",
+      "failed": "沒有找到版本資訊，請稍後再試",
+      "available": "有新版本 {{version}}，點這裡更新",
+      "availableShort": "有新版本 {{version}}",
+      "install": "更新並重新開啟",
+      "installing": "正在更新… {{percent}}%"
     },
     "learn": {
       "settingsGroup": "學習",
@@ -963,8 +1011,14 @@
       "serviceCustom": "其他相容 OpenAI 格式的服務",
       "serviceNone": "不使用（全程本機）",
       "serviceOpenrouter": "OpenRouter（可選模型）",
-      "serviceNote": "送出的只有辨識出的文字和你字典裡的詞。你在哪個 App 打字只在這台電腦上判斷，送出去的只有「風格：聊天」這類標籤。",
-      "serviceNoteOpenrouter": "OpenRouter 會把文字轉給你選的模型的公司處理（例如 DeepSeek、Google、OpenAI）。送出的只有辨識出的文字和你字典裡的詞；你在哪個 App 打字只在這台電腦上判斷。",
+      "serviceLocal": "本機模型（Ollama、LM Studio）",
+      "serviceNoteLocalModel": "文字只送到這台電腦上的模型，不會離開這台電腦，也不需要 key。速度取決於你的電腦；第一次整理要等模型載入，可能比較久。",
+      "localRefresh": "重新整理",
+      "localNotFound": "找不到這台電腦上的模型服務。請先安裝並開啟 Ollama，再下載一個模型（例如在終端機輸入 ollama pull qwen3:8b）。",
+      "localNoModels": "Ollama 還沒有模型，請先下載一個（例如在終端機輸入 ollama pull qwen3:8b）。",
+      "localGetOllama": "下載 Ollama",
+      "serviceNote": "送出的只有辨識出的文字、你字典裡的詞，以及你用說的修改時選取的文字。你在哪個 App 打字只在這台電腦上判斷，送出去的只有「風格：聊天」這類標籤。",
+      "serviceNoteOpenrouter": "OpenRouter 會把文字轉給你選的模型的公司處理（例如 DeepSeek、Google、OpenAI）。送出的只有辨識出的文字、你字典裡的詞，以及你用說的修改時選取的文字；你在哪個 App 打字只在這台電腦上判斷。",
       "serviceNoteLocal": "全程本機：不連網，也不需要 key。潤飾程度固定為「原話」。",
       "apiKey": "API key",
       "save": "儲存",

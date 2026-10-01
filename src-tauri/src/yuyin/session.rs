@@ -67,6 +67,20 @@ struct Session {
     sent_to: Option<String>,
     /// The history entry's recording, to join history with this record.
     file_name: Option<String>,
+    /// This app's extra instruction and output language (apps.rs).
+    note: String,
+    translate_to: Option<String>,
+    /// Text the user had selected when they pressed the key, to edit by
+    /// voice (only with `YuyinConfig::edit_selection` on).
+    selection: Option<String>,
+}
+
+/// What the clean-up needs beyond the transcript and the style.
+#[derive(Clone, Debug, Default)]
+pub struct Extras {
+    pub note: String,
+    pub translate_to: Option<String>,
+    pub selection: Option<String>,
 }
 
 static CURRENT: Lazy<Mutex<Option<Session>>> = Lazy::new(|| Mutex::new(None));
@@ -103,6 +117,10 @@ struct ContextEvent {
     hands_free: bool,
     /// Where this dictation's text will go ("DeepSeek"), or none: all local.
     sends_to: Option<String>,
+    /// What the user says will edit the text they selected.
+    editing: bool,
+    /// The text will be written in another language.
+    translating: bool,
 }
 
 /// Key press (at `pressed`): remember where the user is typing.
@@ -112,15 +130,33 @@ pub fn begin(app: &AppHandle, pressed: Instant) {
         Some((app, window)) => (Some(app), window),
         None => (None, None),
     };
-    let context = front.as_ref().map(classify).unwrap_or(Context::Other);
+    let auto = front.as_ref().map(classify).unwrap_or(Context::Other);
     let app_name = front.as_ref().map(display_name).unwrap_or_default();
+    // The user's choices for this app (apps.rs) override the automatic style.
+    let cfg = super::config::get(app);
+    let style = front
+        .as_ref()
+        .and_then(|f| super::apps::style_for(&cfg, &f.bundle_id));
+    let context = style.and_then(|s| s.context).unwrap_or(auto);
+    let note = style.map(|s| s.note.clone()).unwrap_or_default();
+    let translate_to = super::apps::translate_to(&cfg, style);
+    if let Some(f) = &front {
+        super::apps::note_used(app, f, &app_name, auto);
+    }
+    let extras = Extras {
+        note: note.clone(),
+        translate_to: translate_to.clone(),
+        selection: None,
+    };
     let event = ContextEvent {
         context,
         app: app_name.clone(),
         hands_free: HANDS_FREE.load(Ordering::SeqCst),
-        sends_to: super::polish::destination(&super::config::get(app)),
+        sends_to: super::polish::destination(&super::polish::effective(&cfg, &extras)),
+        editing: false,
+        translating: translate_to.is_some(),
     };
-    let _ = app.emit_to("recording_overlay", "yuyin-context", event);
+    let _ = app.emit_to("recording_overlay", "yuyin-context", event.clone());
     debug!(
         "yuyin session: context={:?} app={:?} window_known={}",
         context,
@@ -148,8 +184,71 @@ pub fn begin(app: &AppHandle, pressed: Instant) {
             sent_chars: 0,
             sent_to: None,
             file_name: None,
+            note,
+            translate_to,
+            selection: None,
         });
     }
+    read_selection(app, &cfg, event);
+}
+
+/// With "edit the selection by voice" on, read the selected text of the app
+/// the user is in, off the key-press path; the capsule then says it will
+/// edit the selection. Not read when no clean-up service can do the edit.
+fn read_selection(app: &AppHandle, cfg: &super::config::YuyinConfig, event: ContextEvent) {
+    if !cfg.edit_selection {
+        return;
+    }
+    let editing = Extras {
+        selection: Some(String::new()),
+        ..extras()
+    };
+    if !super::polish::will_run(&super::polish::effective(cfg, &editing)) {
+        debug!("edit by voice: no clean-up service to do it");
+        return;
+    }
+    let Some(pid) = front_app().map(|f| f.pid) else {
+        return;
+    };
+    let generation = generation();
+    let app = app.clone();
+    std::thread::spawn(move || {
+        let Some(text) = platform::selected_text(pid).filter(|t| !t.trim().is_empty()) else {
+            debug!("edit by voice: nothing selected");
+            return;
+        };
+        debug!(
+            "edit by voice: {} characters selected",
+            text.chars().count()
+        );
+        if self::generation() != generation {
+            return;
+        }
+        with_session(|s| s.selection = Some(text));
+        let _ = app.emit_to(
+            "recording_overlay",
+            "yuyin-context",
+            ContextEvent {
+                editing: true,
+                ..event
+            },
+        );
+    });
+}
+
+/// This dictation's extra instruction, output language and selection.
+pub fn extras() -> Extras {
+    CURRENT
+        .lock()
+        .ok()
+        .and_then(|g| {
+            g.as_ref().map(|s| Extras {
+                note: s.note.clone(),
+                translate_to: s.translate_to.clone(),
+                selection: s.selection.clone(),
+            })
+        })
+        .unwrap_or_default()
 }
 
 /// The app the user started dictating in, for work that happens after the
@@ -513,6 +612,12 @@ mod platform {
     /// Text longer than this (a terminal's whole scrollback) is not read.
     const MAX_FIELD_CHARS: isize = 200_000;
 
+    /// The selected text, to edit by voice. Not yet on macOS (would be the
+    /// focused element's AXSelectedText, skipping AXSecureTextField).
+    pub fn selected_text(_pid: i32) -> Option<String> {
+        None
+    }
+
     pub fn focused_field(pid: i32) -> Option<(String, Option<String>)> {
         // SAFETY: AXUIElementCreateApplication returns a +1 reference.
         let app = unsafe { AXUIElementCreateApplication(pid) };
@@ -830,6 +935,118 @@ mod platform {
         };
     }
 
+    /// The text selected in `pid`'s focused control: through UI
+    /// Automation's TextPattern (documents, rich edits, browsers), else by
+    /// asking a classic edit control directly (WinForms and Win32 text boxes
+    /// expose no TextPattern). None for password boxes, nothing selected, or
+    /// another process in focus.
+    pub fn selected_text(pid: i32) -> Option<String> {
+        let found = uia_selection(pid).or_else(|| edit_control_selection(pid));
+        log::debug!(
+            "selected text: {}",
+            found.as_ref().map_or("none".to_string(), |t| format!(
+                "{} chars",
+                t.chars().count()
+            ))
+        );
+        found
+    }
+
+    fn uia_selection(pid: i32) -> Option<String> {
+        use windows::Win32::UI::Accessibility::{IUIAutomationTextPattern, UIA_TextPatternId};
+        UIA.with(|uia| {
+            let uia = uia.as_ref()?;
+            // SAFETY: COM calls on this thread's client; failures are errors.
+            unsafe {
+                let element = uia.GetFocusedElement().ok()?;
+                if element.CurrentProcessId().ok()? != pid
+                    || element.CurrentIsPassword().ok()?.as_bool()
+                {
+                    return None;
+                }
+                let ranges = element
+                    .GetCurrentPatternAs::<IUIAutomationTextPattern>(UIA_TextPatternId)
+                    .ok()?
+                    .GetSelection()
+                    .ok()?;
+                let mut text = String::new();
+                for i in 0..ranges.Length().ok()? {
+                    let piece = ranges.GetElement(i).ok()?.GetText(MAX_FIELD_CHARS).ok()?;
+                    text.push_str(&piece.to_string());
+                }
+                Some(text).filter(|t| !t.is_empty())
+            }
+        })
+    }
+
+    /// A classic edit control (class name with "Edit": Win32, WinForms,
+    /// RichEdit) answers EM_GETSEL and WM_GETTEXT itself.
+    fn edit_control_selection(pid: i32) -> Option<String> {
+        use windows::Win32::Foundation::{LPARAM, WPARAM};
+        use windows::Win32::UI::WindowsAndMessaging::{
+            GetClassNameW, GetGUIThreadInfo, GetWindowLongW, SendMessageTimeoutW, GUITHREADINFO,
+            GWL_STYLE, SMTO_ABORTIFHUNG, WM_GETTEXT, WM_GETTEXTLENGTH,
+        };
+        const EM_GETSEL: u32 = 0x00B0;
+        const ES_PASSWORD: i32 = 0x0020;
+        let send = |hwnd: HWND, msg: u32, w: usize, l: isize| -> Option<usize> {
+            let mut result = 0usize;
+            // SAFETY: standard messages to a window of another process; the
+            // system marshals WM_GETTEXT's buffer. Times out if the app hangs.
+            let ok = unsafe {
+                SendMessageTimeoutW(
+                    hwnd,
+                    msg,
+                    WPARAM(w),
+                    LPARAM(l),
+                    SMTO_ABORTIFHUNG,
+                    500,
+                    Some(&mut result),
+                )
+            };
+            (ok.0 != 0).then_some(result)
+        };
+        // SAFETY: plain user32 queries; a stale handle makes them fail.
+        unsafe {
+            let fg = GetForegroundWindow();
+            let mut owner = 0u32;
+            let thread = GetWindowThreadProcessId(fg, Some(&mut owner));
+            if owner as i32 != pid {
+                return None;
+            }
+            let mut info = GUITHREADINFO {
+                cbSize: std::mem::size_of::<GUITHREADINFO>() as u32,
+                ..Default::default()
+            };
+            GetGUIThreadInfo(thread, &mut info).ok()?;
+            let focus = info.hwndFocus;
+            if focus.is_invalid() {
+                return None;
+            }
+            let mut class = [0u16; 128];
+            let n = GetClassNameW(focus, &mut class);
+            let class = String::from_utf16_lossy(&class[..n.max(0) as usize]).to_lowercase();
+            if !class.contains("edit") || GetWindowLongW(focus, GWL_STYLE) & ES_PASSWORD != 0 {
+                return None;
+            }
+            let packed = send(focus, EM_GETSEL, 0, 0)? as u32;
+            let (start, end) = ((packed & 0xFFFF) as usize, (packed >> 16) as usize);
+            if start >= end {
+                return None;
+            }
+            let len = send(focus, WM_GETTEXTLENGTH, 0, 0)?;
+            if len > MAX_FIELD_CHARS as usize {
+                return None;
+            }
+            let mut buf = vec![0u16; len + 1];
+            let got = send(focus, WM_GETTEXT, buf.len(), buf.as_mut_ptr() as isize)?;
+            let text = &buf[..got.min(len)];
+            text.get(start..end.min(text.len()))
+                .map(String::from_utf16_lossy)
+                .filter(|t| !t.is_empty())
+        }
+    }
+
     /// The focused UI element of `pid` through UI Automation: its control
     /// type and, unless it is a password box, its text (TextPattern for
     /// documents and rich edits, ValuePattern for single fields). None when
@@ -971,6 +1188,10 @@ mod platform {
     }
 
     pub fn focused_field(_pid: i32) -> Option<(String, Option<String>)> {
+        None
+    }
+
+    pub fn selected_text(_pid: i32) -> Option<String> {
         None
     }
 }

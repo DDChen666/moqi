@@ -62,13 +62,29 @@ pub fn key_host(cfg: &YuyinConfig) -> Option<String> {
     Some(host(&cfg.base_url)).filter(|h| !h.is_empty())
 }
 
+/// A model server on this computer: its text never leaves, and it needs no
+/// key (Ollama, LM Studio).
+pub fn is_loopback(host: &str) -> bool {
+    let name = if let Some(rest) = host.strip_prefix('[') {
+        rest.split(']').next().unwrap_or(rest)
+    } else {
+        host.rsplit_once(':').map_or(host, |(name, _)| name)
+    };
+    name.eq_ignore_ascii_case("localhost")
+        || name
+            .parse::<std::net::IpAddr>()
+            .is_ok_and(|ip| ip.is_loopback())
+}
+
 /// The key for this configuration's service, if the clean-up will run: not
-/// at 原話, and not for a custom service still missing its model name.
+/// at 原話, and not for a custom service still missing its model name. A
+/// model on this computer runs without one (an empty key sends no header).
 fn usable_key(cfg: &YuyinConfig) -> Option<String> {
     if cfg.level == Level::Raw || cfg.model.trim().is_empty() {
         return None;
     }
-    secrets::api_key(&key_host(cfg)?)
+    let host = key_host(cfg)?;
+    secrets::api_key(&host).or_else(|| is_loopback(&host).then(String::new))
 }
 
 /// Open the connection while the user is still speaking, so the request after
@@ -81,12 +97,11 @@ pub fn warm_up(app: &AppHandle) {
     };
     let url = endpoint(&cfg, "/models");
     tauri::async_runtime::spawn(async move {
-        let result = CLIENT
-            .get(url)
-            .bearer_auth(key)
-            .timeout(Duration::from_secs(5))
-            .send()
-            .await;
+        let mut request = CLIENT.get(url).timeout(Duration::from_secs(5));
+        if !key.is_empty() {
+            request = request.bearer_auth(key);
+        }
+        let result = request.send().await;
         if let Err(e) = result {
             debug!("LLM connection warm-up failed: {e}");
         }
@@ -97,9 +112,10 @@ pub fn warm_up(app: &AppHandle) {
 /// to paste: the polished version, or the transcript itself when the level is
 /// Raw or anything goes wrong.
 pub async fn polish(app: &AppHandle, transcript: &str) -> String {
-    let cfg = config::get(app);
+    let extras = session::extras();
+    let cfg = effective(&config::get(app), &extras);
     let context = session::context();
-    let (text, outcome) = match run(&cfg, context, transcript).await {
+    let (text, outcome) = match run(&cfg, context, &extras, transcript).await {
         Ok(Some(text)) => (text, PolishOutcome::Ok),
         Ok(None) => (transcript.to_string(), PolishOutcome::Skipped),
         Err(e) => {
@@ -119,22 +135,62 @@ pub async fn test(app: &AppHandle, text: &str) -> Result<String, String> {
     if cfg.level == Level::Raw {
         cfg.level = Level::Tidy;
     }
-    Ok(run(&cfg, Context::Other, text)
+    Ok(run(&cfg, Context::Other, &session::Extras::default(), text)
         .await?
         .unwrap_or_else(|| text.to_string()))
+}
+
+/// The configuration a dictation really uses: translating, or editing a
+/// selection, needs the clean-up service even at 原話.
+pub fn effective(cfg: &YuyinConfig, extras: &session::Extras) -> YuyinConfig {
+    let mut cfg = cfg.clone();
+    if cfg.level == Level::Raw && (extras.translate_to.is_some() || extras.selection.is_some()) {
+        cfg.level = Level::Tidy;
+    }
+    cfg
+}
+
+/// Whether a clean-up service will be asked (on this computer or not).
+pub fn will_run(cfg: &YuyinConfig) -> bool {
+    usable_key(cfg).is_some()
 }
 
 /// `Ok(None)`: nothing to do (Raw level, no service, blank transcript).
 async fn run(
     cfg: &YuyinConfig,
     context: Context,
+    extras: &session::Extras,
     transcript: &str,
 ) -> Result<Option<String>, String> {
     if transcript.trim().is_empty() {
         return Ok(None);
     }
-    let Some(system) = prompt::system_prompt(cfg.level, context, &cfg.vocab) else {
-        return Ok(None);
+    let translate_to = extras.translate_to.as_deref();
+    // Editing a selection, or cleaning up what was said. A translation or an
+    // edit may change the length a lot, so only plain clean-ups get the
+    // length guard.
+    let (system, user, guarded) = match extras.selection.as_deref() {
+        Some(selected) => (
+            prompt::edit_system(&cfg.vocab, &extras.note, translate_to),
+            prompt::edit_message(selected, transcript),
+            false,
+        ),
+        None => {
+            let Some(system) = prompt::system_prompt_for(
+                cfg.level,
+                context,
+                &cfg.vocab,
+                &extras.note,
+                translate_to,
+            ) else {
+                return Ok(None);
+            };
+            (
+                system,
+                prompt::user_message(transcript),
+                translate_to.is_none(),
+            )
+        }
     };
     // No key for this service yet (setup skipped, or the service was just
     // switched): nothing to do, not a failure — the capsule would otherwise
@@ -148,7 +204,7 @@ async fn run(
         "model": cfg.model,
         "messages": [
             {"role": "system", "content": system},
-            {"role": "user", "content": prompt::user_message(transcript)},
+            {"role": "user", "content": user},
         ],
         "temperature": 0,
         "stream": false,
@@ -165,8 +221,13 @@ async fn run(
         body["provider"] = json!({"sort": "latency"});
     }
 
-    // Transparency (history, privacy card): what leaves the computer, and where.
-    session::mark_sent(transcript.chars().count(), host(&cfg.base_url));
+    // Transparency (history, privacy card): what leaves the computer, and
+    // where. A model on this computer is not "sent" anywhere.
+    let to = host(&cfg.base_url);
+    if !is_loopback(&to) {
+        let selected = extras.selection.as_deref().map_or(0, |s| s.chars().count());
+        session::mark_sent(transcript.chars().count() + selected, to);
+    }
 
     let started = std::time::Instant::now();
     let mut response = send(cfg, &key, &body, openrouter).await?;
@@ -195,7 +256,11 @@ async fn run(
     debug!("Polish took {:?}", started.elapsed());
 
     let text = clean_output(content, context);
-    check_output(transcript, &text)?;
+    if guarded {
+        check_output(transcript, &text)?;
+    } else if text.is_empty() {
+        return Err("empty output".into());
+    }
     Ok(Some(text))
 }
 
@@ -221,9 +286,11 @@ async fn send(
 ) -> Result<reqwest::Response, String> {
     let mut request = CLIENT
         .post(endpoint(cfg, "/chat/completions"))
-        .bearer_auth(key)
-        .timeout(Duration::from_millis(cfg.timeout_ms))
+        .timeout(Duration::from_millis(local_timeout(cfg)))
         .json(body);
+    if !key.is_empty() {
+        request = request.bearer_auth(key);
+    }
     if openrouter {
         // OpenRouter's app attribution: names Moqi, carries nothing of the user's.
         request = request
@@ -232,7 +299,7 @@ async fn send(
     }
     request.send().await.map_err(|e| {
         if e.is_timeout() {
-            format!("timed out after {} ms", cfg.timeout_ms)
+            format!("timed out after {} ms", local_timeout(cfg))
         } else {
             format!("request failed: {e}")
         }
@@ -415,6 +482,51 @@ mod openrouter_tests {
     }
 
     #[test]
+    fn local_servers_are_recognized() {
+        assert!(is_loopback("localhost:11434"));
+        assert!(is_loopback("127.0.0.1:1234"));
+        assert!(is_loopback("[::1]:8080"));
+        assert!(is_loopback("LOCALHOST"));
+        assert!(!is_loopback("openrouter.ai"));
+        assert!(!is_loopback("localhost.example.com"));
+        assert!(!is_loopback("192.168.1.5:11434"));
+        assert!(!is_loopback("127.evil.example"));
+    }
+
+    #[test]
+    fn translating_or_editing_uses_the_service_even_at_raw() {
+        let raw = YuyinConfig {
+            level: Level::Raw,
+            ..YuyinConfig::default()
+        };
+        let plain = session::Extras::default();
+        assert_eq!(effective(&raw, &plain).level, Level::Raw);
+        let translate = session::Extras {
+            translate_to: Some("en".into()),
+            ..Default::default()
+        };
+        assert_eq!(effective(&raw, &translate).level, Level::Tidy);
+        let edit = session::Extras {
+            selection: Some("x".into()),
+            ..Default::default()
+        };
+        assert_eq!(effective(&raw, &edit).level, Level::Tidy);
+    }
+
+    #[test]
+    fn a_local_model_needs_no_key_and_sends_nothing_out() {
+        let cfg = YuyinConfig {
+            service: config::Service::Local,
+            base_url: "http://localhost:11434/v1".into(),
+            model: "qwen3:8b".into(),
+            ..YuyinConfig::default()
+        };
+        assert_eq!(usable_key(&cfg).as_deref(), Some(""));
+        assert_eq!(destination(&cfg), None);
+        assert_eq!(local_timeout(&cfg), 15_000);
+    }
+
+    #[test]
     fn openrouter_is_named_in_the_capsule() {
         assert_eq!(display_name("openrouter.ai"), "OpenRouter");
         assert_eq!(display_name("api.deepseek.com"), "DeepSeek");
@@ -477,11 +589,51 @@ mod key_host_tests {
     }
 }
 
+/// A model on this computer may still be loading into memory on the first
+/// request: give it longer before falling back to the transcript.
+fn local_timeout(cfg: &YuyinConfig) -> u64 {
+    if is_loopback(&host(&cfg.base_url)) {
+        cfg.timeout_ms.max(15_000)
+    } else {
+        cfg.timeout_ms
+    }
+}
+
+/// The models a server on this computer offers (OpenAI-style `/models`),
+/// for the settings page. Never asks anything off this computer.
+pub async fn local_models(base_url: &str) -> Result<Vec<String>, String> {
+    if !is_loopback(&host(base_url)) {
+        return Err("not a local address".into());
+    }
+    let probe = YuyinConfig {
+        base_url: base_url.to_string(),
+        ..YuyinConfig::default()
+    };
+    let json: serde_json::Value = CLIENT
+        .get(endpoint(&probe, "/models"))
+        .timeout(Duration::from_secs(3))
+        .send()
+        .await
+        .map_err(|e| format!("request failed: {e}"))?
+        .error_for_status()
+        .map_err(|e| e.to_string())?
+        .json()
+        .await
+        .map_err(|e| format!("bad response: {e}"))?;
+    Ok(json["data"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|m| m["id"].as_str().map(str::to_string))
+        .collect())
+}
+
 /// What the capsule names as the destination ("文字 → DeepSeek"), or `None`
-/// when this dictation will not send anything.
+/// when this dictation sends nothing off this computer.
 pub fn destination(cfg: &YuyinConfig) -> Option<String> {
     usable_key(cfg)?;
-    Some(display_name(&host(&cfg.base_url)))
+    let to = host(&cfg.base_url);
+    (!is_loopback(&to)).then(|| display_name(&to))
 }
 
 /// How the capsule names a host: the service's name when we know it.

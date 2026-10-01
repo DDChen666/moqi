@@ -702,6 +702,8 @@ pub fn run(cli_args: CliArgs) {
             yuyin::commands::yuyin_sync_status,
             yuyin::commands::yuyin_set_sync_folder,
             yuyin::commands::yuyin_sync_now,
+            yuyin::commands::yuyin_local_models,
+            yuyin::commands::yuyin_recent_apps,
             yuyin::commands::yuyin_report_error,
             yuyin::commands::yuyin_stats,
             yuyin::commands::yuyin_history_meta,

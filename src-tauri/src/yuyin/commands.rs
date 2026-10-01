@@ -84,6 +84,20 @@ pub async fn yuyin_sync_now(app: AppHandle) -> Result<(), String> {
         .map_err(|e| e.to_string())?
 }
 
+/// The apps the user recently dictated into, for per-app styles.
+#[tauri::command]
+#[specta::specta]
+pub fn yuyin_recent_apps(app: AppHandle) -> Vec<super::apps::RecentApp> {
+    super::apps::recent(&app)
+}
+
+/// The models of a server on this computer (Ollama, LM Studio).
+#[tauri::command]
+#[specta::specta]
+pub async fn yuyin_local_models(base_url: String) -> Result<Vec<String>, String> {
+    polish::local_models(&base_url).await
+}
+
 /// OpenRouter's public model catalog for the model picker.
 #[tauri::command]
 #[specta::specta]
