@@ -1002,6 +1002,11 @@
           }
         }
       },
+      "advanced": {
+        "showTrayIcon": {
+          "description": "Display the Moqi icon in the system tray."
+        }
+      },
       "debug": {
         "keyboardDiagnostic": {
           "running": "Listening… press your shortcut a few times (e.g. Alt+Space)"
