@@ -699,6 +699,9 @@ pub fn run(cli_args: CliArgs) {
             yuyin::commands::yuyin_openrouter_models,
             yuyin::commands::yuyin_learned,
             yuyin::commands::yuyin_set_learned,
+            yuyin::commands::yuyin_sync_status,
+            yuyin::commands::yuyin_set_sync_folder,
+            yuyin::commands::yuyin_sync_now,
             yuyin::commands::yuyin_report_error,
             yuyin::commands::yuyin_stats,
             yuyin::commands::yuyin_history_meta,
@@ -1106,6 +1109,9 @@ pub fn run(cli_args: CliArgs) {
             // last" (yuyin/focus_return.rs). Setup runs on the main thread.
             #[cfg(target_os = "windows")]
             yuyin::focus_return::install();
+            // Yuyin fork: sync the dictionary and settings through the user's
+            // cloud folder, when they picked one (yuyin/sync.rs).
+            yuyin::sync::start(&app_handle);
 
             // Secure Input monitor (macOS): detects stuck secure input that
             // silently blocks keyed shortcuts, warns the user, and activates

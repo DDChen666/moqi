@@ -31,6 +31,7 @@ pub mod replay;
 pub mod secrets;
 pub mod session;
 pub mod stats;
+pub mod sync;
 #[cfg(target_os = "windows")]
 pub mod warmup;
 #[cfg(target_os = "windows")]

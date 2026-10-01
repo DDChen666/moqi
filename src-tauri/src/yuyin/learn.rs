@@ -54,6 +54,9 @@ pub struct Rule {
     pub dismissed: bool,
     /// When it was last seen, Unix milliseconds.
     pub last_seen: f64,
+    /// When it last changed in any way (sync keeps the newest), Unix ms.
+    #[serde(default)]
+    pub changed: f64,
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -462,6 +465,7 @@ fn record(app: &AppHandle, found: &[(String, String)]) {
         let terms = learn_into(store, found, now_ms());
         (terms, true)
     });
+    super::sync::changed();
     if terms.is_empty() {
         return;
     }
@@ -495,6 +499,7 @@ fn learn_into(store: &mut Store, found: &[(String, String)], now: f64) -> Vec<St
         {
             rule.active = false;
             rule.dismissed = true;
+            rule.changed = now;
             continue;
         }
         let index = match store
@@ -511,6 +516,7 @@ fn learn_into(store: &mut Store, found: &[(String, String)], now: f64) -> Vec<St
                     active: false,
                     dismissed: false,
                     last_seen: now,
+                    changed: now,
                 });
                 store.rules.len() - 1
             }
@@ -521,6 +527,7 @@ fn learn_into(store: &mut Store, found: &[(String, String)], now: f64) -> Vec<St
         }
         rule.count += 1;
         rule.last_seen = now;
+        rule.changed = now;
         if rule.count >= TIMES_TO_LEARN && !rule.active {
             rule.active = true;
             if to.chars().any(|c| c.is_ascii_alphabetic()) {
@@ -528,8 +535,9 @@ fn learn_into(store: &mut Store, found: &[(String, String)], now: f64) -> Vec<St
             }
             // One correction per word: the newest wins.
             for other in store.rules.iter_mut() {
-                if other.from == *from && other.to != *to {
+                if other.from == *from && other.to != *to && other.active {
                     other.active = false;
+                    other.changed = now;
                 }
             }
         }
@@ -555,18 +563,35 @@ pub fn rules(app: &AppHandle) -> Vec<Rule> {
 
 /// Start applying a correction now, or forget it for good.
 pub fn set_rule(app: &AppHandle, from: &str, to: &str, active: bool) {
+    let now = now_ms();
     with_store(app, |store| {
         let mut changed = false;
         for rule in store.rules.iter_mut().filter(|r| r.from == from) {
             if rule.to == to {
                 rule.active = active;
                 rule.dismissed = !active;
+                rule.changed = now;
                 changed = true;
-            } else if active {
+            } else if active && rule.active {
                 rule.active = false;
+                rule.changed = now;
             }
         }
         ((), changed)
+    });
+    super::sync::changed();
+}
+
+/// Every rule, removed ones included (sync needs them so a removal spreads).
+pub fn all_rules(app: &AppHandle) -> Vec<Rule> {
+    with_store(app, |s| (s.rules.clone(), false))
+}
+
+/// Replace every rule with the merged set from sync.
+pub fn replace_rules(app: &AppHandle, rules: Vec<Rule>) {
+    with_store(app, |s| {
+        s.rules = rules;
+        ((), true)
     });
 }
 

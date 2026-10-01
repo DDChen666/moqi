@@ -14,7 +14,9 @@ pub fn yuyin_get_config(app: AppHandle) -> YuyinConfig {
 #[tauri::command]
 #[specta::specta]
 pub fn yuyin_set_config(app: AppHandle, config: YuyinConfig) -> Result<(), String> {
-    config::set(&app, config)
+    config::set(&app, config)?;
+    super::sync::changed();
+    Ok(())
 }
 
 /// The host whose key the settings mean: `base_url` when the page names one
@@ -57,6 +59,29 @@ pub fn yuyin_learned(app: AppHandle) -> Vec<super::learn::Rule> {
 #[specta::specta]
 pub fn yuyin_set_learned(app: AppHandle, from: String, to: String, active: bool) {
     super::learn::set_rule(&app, &from, &to, active);
+}
+
+/// Where this computer syncs, when it last did, and with which computers.
+#[tauri::command]
+#[specta::specta]
+pub fn yuyin_sync_status(app: AppHandle) -> super::sync::Status {
+    super::sync::status(&app)
+}
+
+/// Sync through `folder` (a cloud drive folder), or stop with `None`.
+#[tauri::command]
+#[specta::specta]
+pub fn yuyin_set_sync_folder(app: AppHandle, folder: Option<String>) -> Result<(), String> {
+    super::sync::set_folder(&app, folder)
+}
+
+/// Sync right away (the settings page's button).
+#[tauri::command]
+#[specta::specta]
+pub async fn yuyin_sync_now(app: AppHandle) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || super::sync::sync_now(&app))
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 /// OpenRouter's public model catalog for the model picker.

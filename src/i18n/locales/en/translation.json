@@ -900,6 +900,24 @@
       "notes": "notes",
       "other": "general"
     },
+    "sync": {
+      "groupTitle": "Sync between computers",
+      "folder": "Sync folder",
+      "notSet": "Not set",
+      "choose": "Choose folder…",
+      "chooseTitle": "Choose a folder in your cloud drive",
+      "stop": "Stop syncing",
+      "status": "Sync status",
+      "lastSync": "Last synced {{time}}",
+      "never": "Not synced yet",
+      "devices_one": "{{count}} other computer: {{names}}",
+      "devices_other": "{{count}} other computers: {{names}}",
+      "noDevices": "No other computer yet — choose the same folder in Moqi on another computer",
+      "syncNow": "Sync now",
+      "syncing": "Syncing…",
+      "failed": "Sync failed: {{error}}",
+      "footnote": "Choose a folder in OneDrive, Dropbox, Google Drive or iCloud Drive, and the same folder on your other computer. Your dictionary, learned corrections and clean-up settings sync; API keys, recordings and history don't, and each computer decides on “Learn from my corrections” itself."
+    },
     "learn": {
       "settingsGroup": "Learning",
       "title": "Learn from my corrections",

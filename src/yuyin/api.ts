@@ -29,6 +29,16 @@ export interface YuyinConfig {
   learn_from_edits: boolean | null;
 }
 
+/** Sync through a cloud folder (sync.rs). */
+export interface SyncStatus {
+  folder: string | null;
+  /** Unix ms; 0 before the first sync. */
+  last_sync: number;
+  /** The other computers: name and when they last changed something. */
+  devices: [string, number][];
+  error: string | null;
+}
+
 /** A correction learned from the user's edits (learn.rs). */
 export interface LearnedRule {
   from: string;
@@ -84,6 +94,11 @@ export const yuyinApi = {
     return next;
   },
   learned: () => invoke<LearnedRule[]>("yuyin_learned"),
+  syncStatus: () => invoke<SyncStatus>("yuyin_sync_status"),
+  /** Sync through `folder`, or stop with null. */
+  setSyncFolder: (folder: string | null) =>
+    invoke<void>("yuyin_set_sync_folder", { folder }),
+  syncNow: () => invoke<void>("yuyin_sync_now"),
   /** Apply a learned correction from now on, or forget it for good. */
   setLearned: (from: string, to: string, active: boolean) =>
     invoke<void>("yuyin_set_learned", { from, to, active }),

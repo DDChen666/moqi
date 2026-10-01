@@ -900,6 +900,24 @@
       "notes": "筆記",
       "other": "一般"
     },
+    "sync": {
+      "groupTitle": "在電腦之間同步",
+      "folder": "同步資料夾",
+      "notSet": "還沒設定",
+      "choose": "選擇資料夾…",
+      "chooseTitle": "選一個雲端硬碟裡的資料夾",
+      "stop": "停止同步",
+      "status": "同步狀態",
+      "lastSync": "上次同步 {{time}}",
+      "never": "還沒同步過",
+      "devices_one": "另外 {{count}} 台電腦：{{names}}",
+      "devices_other": "另外 {{count}} 台電腦：{{names}}",
+      "noDevices": "還沒有其他電腦，請在另一台電腦的默契選同一個資料夾",
+      "syncNow": "立即同步",
+      "syncing": "同步中…",
+      "failed": "同步失敗：{{error}}",
+      "footnote": "選 OneDrive、Dropbox、Google Drive 或 iCloud 雲端硬碟裡的一個資料夾，在另一台電腦也選同一個。會同步字典、學到的改法和潤稿設定；API key、錄音和歷史紀錄不會同步，「從我的修改學習」也由每台電腦各自決定。"
+    },
     "learn": {
       "settingsGroup": "學習",
       "title": "從我的修改學習",

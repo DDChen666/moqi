@@ -10,12 +10,14 @@ import { useSettings } from "@/hooks/useSettings";
 import { useOsType } from "@/hooks/useOsType";
 import { getSupportedLanguage } from "@/i18n";
 import { applyTheme, THEME_OPTIONS } from "@/lib/utils/theme";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   yuyinApi,
   type Level,
   type ModelInfo,
   type Service,
+  type SyncStatus,
   type YuyinConfig,
 } from "../api";
 import {
@@ -182,6 +184,107 @@ const ApiKeyRow: React.FC<{ baseUrl: string; service: Service }> = ({
         </div>
       )}
     </>
+  );
+};
+
+/** Sync through a folder in the user's cloud drive (sync.rs). */
+const SyncGroup: React.FC = () => {
+  const { t, i18n } = useTranslation();
+  const [status, setStatus] = useState<SyncStatus | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const load = () =>
+    yuyinApi
+      .syncStatus()
+      .then(setStatus)
+      .catch((e) => console.error("Failed to read sync status:", e));
+  useEffect(() => {
+    load();
+  }, []);
+
+  const when = (ms: number) => {
+    const d = new Date(ms);
+    const today = d.toDateString() === new Date().toDateString();
+    return d.toLocaleString(i18n.language, {
+      ...(today ? {} : { month: "numeric", day: "numeric" }),
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const choose = async () => {
+    const folder = await openDialog({
+      directory: true,
+      title: t("moqi.sync.chooseTitle"),
+    });
+    if (typeof folder !== "string") return;
+    try {
+      await yuyinApi.setSyncFolder(folder);
+      await syncNow();
+    } catch (e) {
+      toast.error(String(e));
+    }
+  };
+  const stop = async () => {
+    await yuyinApi.setSyncFolder(null);
+    load();
+  };
+  const syncNow = async () => {
+    setBusy(true);
+    try {
+      await yuyinApi.syncNow();
+    } catch (e) {
+      console.error("Sync failed:", e);
+    } finally {
+      setBusy(false);
+      load();
+    }
+  };
+
+  const folder = status?.folder;
+  const devices = status?.devices ?? [];
+  return (
+    <Group title={t("moqi.sync.groupTitle")} footnote={t("moqi.sync.footnote")}>
+      <Row
+        label={t("moqi.sync.folder")}
+        description={
+          <span className="break-all">{folder ?? t("moqi.sync.notSet")}</span>
+        }
+      >
+        {folder && (
+          <SmallButton onClick={stop}>{t("moqi.sync.stop")}</SmallButton>
+        )}
+        <SmallButton onClick={choose}>{t("moqi.sync.choose")}</SmallButton>
+      </Row>
+      {folder && (
+        <Row
+          label={t("moqi.sync.status")}
+          description={
+            status?.error ? (
+              <span className="text-error">
+                {t("moqi.sync.failed", { error: status.error })}
+              </span>
+            ) : (
+              [
+                status && status.last_sync > 0
+                  ? t("moqi.sync.lastSync", { time: when(status.last_sync) })
+                  : t("moqi.sync.never"),
+                devices.length > 0
+                  ? t("moqi.sync.devices", {
+                      count: devices.length,
+                      names: devices.map(([name]) => name).join("、"),
+                    })
+                  : t("moqi.sync.noDevices"),
+              ].join("・")
+            )
+          }
+        >
+          <SmallButton onClick={syncNow} disabled={busy}>
+            {busy ? t("moqi.sync.syncing") : t("moqi.sync.syncNow")}
+          </SmallButton>
+        </Row>
+      )}
+    </Group>
   );
 };
 
@@ -528,6 +631,8 @@ export const SettingsPage: React.FC = () => {
           />
         </Row>
       </Group>
+
+      <SyncGroup />
 
       <Group title={t("moqi.settings.microphone")}>
         <MicrophoneSelector grouped descriptionMode="inline" />
