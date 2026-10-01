@@ -46,7 +46,15 @@ tauri_panel! {
 // Compact overlay (Minimal / transcribing / processing): the 40h pill animates
 // width from 172 (--ov-rest-w) to 216 (--ov-work-w) and expands from center, so
 // the window must fit the widest state plus a little slack.
+#[cfg(not(target_os = "windows"))]
 const OVERLAY_WIDTH: f64 = 256.0;
+// Yuyin fork: the capsule's widest states measure up to 306 CSS px on Windows
+// (hands-free with the timer, "文字 → DeepSeek" while tidying, the English
+// fallback), so a 256 px window cut off both of its ends. The window is
+// transparent, so the extra room only shows as the capsule's full shape and
+// shadow. macOS keeps 256 until measured there.
+#[cfg(target_os = "windows")]
+const OVERLAY_WIDTH: f64 = 340.0;
 const OVERLAY_HEIGHT: f64 = 72.0; // Yuyin fork: room for the capsule shadow (was 50)
 
 // Actual is 394x118, just a little extra
@@ -856,8 +864,8 @@ mod tests {
                 OVERLAY_HEIGHT,
                 OverlayPosition::Bottom,
             ),
-            // Yuyin fork: the overlay is 72 px tall (108 at 1.5x), not 50.
-            (3648, 1992, 384, 108)
+            // Yuyin fork: the overlay is 340x72 on Windows (510x108 at 1.5x).
+            (3585, 1992, 510, 108)
         );
         assert_eq!(
             windows_overlay_bounds(
@@ -869,7 +877,7 @@ mod tests {
                 OVERLAY_HEIGHT,
                 OverlayPosition::Top,
             ),
-            (3648, 6, 384, 108)
+            (3585, 6, 510, 108)
         );
     }
 

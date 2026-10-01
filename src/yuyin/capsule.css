@@ -178,7 +178,7 @@
 }
 /* App names and custom service hosts can be long (Windows names apps by
    their file description): cut them rather than let the pill outgrow its
-   256 px window, which clipped both ends and hid the name. */
+   window (256 px, 340 on Windows), which clipped both ends and hid the name. */
 .yy-clip {
   max-width: 120px;
   overflow: hidden;
