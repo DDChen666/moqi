@@ -810,11 +810,71 @@ mod platform {
         Some((hwnd, pid, path))
     }
 
-    /// The foreground app and window. Windows has no system-wide "focused
-    /// text field" to read without UI Automation; the field probe (a
-    /// development tool) simply records nothing here.
-    pub fn focused_field(_pid: i32) -> Option<(String, Option<String>)> {
-        None
+    /// Text longer than this (a terminal's whole scrollback) is not read.
+    const MAX_FIELD_CHARS: i32 = 200_000;
+
+    thread_local! {
+        /// One UI Automation client per watching thread (COM objects stay on
+        /// the thread that made them).
+        static UIA: Option<windows::Win32::UI::Accessibility::IUIAutomation> = {
+            use windows::Win32::System::Com::{
+                CoCreateInstance, CoInitializeEx, CLSCTX_INPROC_SERVER, COINIT_MULTITHREADED,
+            };
+            use windows::Win32::UI::Accessibility::CUIAutomation;
+            // SAFETY: joining the MTA is per thread and may repeat; the client
+            // is created and used only on this thread.
+            unsafe {
+                let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+                CoCreateInstance(&CUIAutomation, None, CLSCTX_INPROC_SERVER).ok()
+            }
+        };
+    }
+
+    /// The focused UI element of `pid` through UI Automation: its control
+    /// type and, unless it is a password box, its text (TextPattern for
+    /// documents and rich edits, ValuePattern for single fields). None when
+    /// another process has the focus or nothing is focused.
+    pub fn focused_field(pid: i32) -> Option<(String, Option<String>)> {
+        use windows::Win32::UI::Accessibility::{
+            IUIAutomationTextPattern, IUIAutomationValuePattern, UIA_DocumentControlTypeId,
+            UIA_EditControlTypeId, UIA_TextPatternId, UIA_ValuePatternId,
+        };
+        UIA.with(|uia| {
+            let uia = uia.as_ref()?;
+            // SAFETY: COM calls on this thread's client; failures are errors.
+            unsafe {
+                let element = uia.GetFocusedElement().ok()?;
+                if element.CurrentProcessId().ok()? != pid {
+                    return None;
+                }
+                let control = element.CurrentControlType().ok()?;
+                let role = if control == UIA_EditControlTypeId {
+                    "Edit".to_string()
+                } else if control == UIA_DocumentControlTypeId {
+                    "Document".to_string()
+                } else {
+                    format!("ControlType{}", control.0)
+                };
+                if element.CurrentIsPassword().ok()?.as_bool() {
+                    return Some((role, None));
+                }
+                let text = element
+                    .GetCurrentPatternAs::<IUIAutomationTextPattern>(UIA_TextPatternId)
+                    .and_then(|p| p.DocumentRange())
+                    .and_then(|r| r.GetText(MAX_FIELD_CHARS + 1))
+                    .map(|b| b.to_string())
+                    .ok()
+                    .or_else(|| {
+                        element
+                            .GetCurrentPatternAs::<IUIAutomationValuePattern>(UIA_ValuePatternId)
+                            .and_then(|p| p.CurrentValue())
+                            .map(|b| b.to_string())
+                            .ok()
+                    })
+                    .filter(|t| t.encode_utf16().count() <= MAX_FIELD_CHARS as usize);
+                Some((role, text))
+            }
+        })
     }
 
     pub fn frontmost() -> Option<(FrontApp, Option<Window>)> {
