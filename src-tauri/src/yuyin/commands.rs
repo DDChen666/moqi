@@ -17,18 +17,32 @@ pub fn yuyin_set_config(app: AppHandle, config: YuyinConfig) -> Result<(), Strin
     config::set(&app, config)
 }
 
-/// Whether an API key is stored. The key itself is never sent to the frontend.
-#[tauri::command]
-#[specta::specta]
-pub fn yuyin_has_api_key() -> bool {
-    secrets::has_api_key()
+/// The host whose key the settings mean: `base_url` when the page names one
+/// (the service being edited), else the saved configuration's service.
+fn key_host(app: &AppHandle, base_url: Option<String>) -> String {
+    match base_url {
+        Some(url) => polish::host(&url),
+        None => polish::key_host(&config::get(app)).unwrap_or_default(),
+    }
 }
 
-/// Store the key in the Keychain; an empty string removes it.
+/// Whether a key is stored for that service. The key itself is never sent to
+/// the frontend.
 #[tauri::command]
 #[specta::specta]
-pub fn yuyin_set_api_key(key: String) -> Result<(), String> {
-    secrets::set_api_key(&key)
+pub fn yuyin_has_api_key(app: AppHandle, base_url: Option<String>) -> bool {
+    secrets::has_api_key(&key_host(&app, base_url))
+}
+
+/// Store the key for that service in the keychain; an empty string removes it.
+#[tauri::command]
+#[specta::specta]
+pub fn yuyin_set_api_key(
+    app: AppHandle,
+    key: String,
+    base_url: Option<String>,
+) -> Result<(), String> {
+    secrets::set_api_key(&key_host(&app, base_url), &key)
 }
 
 /// The home page's numbers (all computed locally from the timings log).

@@ -30,17 +30,41 @@ static CLIENT: Lazy<reqwest::Client> = Lazy::new(|| {
 });
 
 fn endpoint(cfg: &YuyinConfig, path: &str) -> String {
-    format!("{}{path}", cfg.base_url.trim_end_matches('/'))
+    let base = cfg.base_url.trim().trim_end_matches('/');
+    // "openrouter.ai/api/v1" typed without a scheme: HTTPS, as the host shown
+    // in the capsule and history already assumes.
+    if base.contains("://") {
+        format!("{base}{path}")
+    } else {
+        format!("https://{base}{path}")
+    }
+}
+
+/// The host whose key this configuration uses and where its text would go,
+/// or `None` when nothing is sent: no service, or a custom service with no
+/// address yet. Does not look at the level.
+pub fn key_host(cfg: &YuyinConfig) -> Option<String> {
+    if cfg.service == config::Service::None {
+        return None;
+    }
+    Some(host(&cfg.base_url)).filter(|h| !h.is_empty())
+}
+
+/// The key for this configuration's service, if the clean-up will run: not
+/// at 原話, and not for a custom service still missing its model name.
+fn usable_key(cfg: &YuyinConfig) -> Option<String> {
+    if cfg.level == Level::Raw || cfg.model.trim().is_empty() {
+        return None;
+    }
+    secrets::api_key(&key_host(cfg)?)
 }
 
 /// Open the connection while the user is still speaking, so the request after
-/// release doesn't pay for DNS + TLS. Sends no transcript content.
+/// release doesn't pay for DNS + TLS. Sends no transcript content, and nothing
+/// at all when the clean-up won't run (原話, 全程本機, or no key).
 pub fn warm_up(app: &AppHandle) {
     let cfg = config::get(app);
-    if cfg.level == Level::Raw {
-        return;
-    }
-    let Some(key) = secrets::api_key() else {
+    let Some(key) = usable_key(&cfg) else {
         return;
     };
     let url = endpoint(&cfg, "/models");
@@ -77,28 +101,34 @@ pub async fn polish(app: &AppHandle, transcript: &str) -> String {
 
 /// For the settings panel's test button: same request as a real dictation
 /// (context Other), but errors are reported instead of silently falling back.
+/// Tests the service even while the level is 原話, which never calls it.
 pub async fn test(app: &AppHandle, text: &str) -> Result<String, String> {
-    let cfg = config::get(app);
+    let mut cfg = config::get(app);
+    if cfg.level == Level::Raw {
+        cfg.level = Level::Tidy;
+    }
     Ok(run(&cfg, Context::Other, text)
         .await?
         .unwrap_or_else(|| text.to_string()))
 }
 
-/// `Ok(None)`: nothing to do (Raw level or blank transcript).
+/// `Ok(None)`: nothing to do (Raw level, no service, blank transcript).
 async fn run(
     cfg: &YuyinConfig,
     context: Context,
     transcript: &str,
 ) -> Result<Option<String>, String> {
-    if transcript.trim().is_empty() || cfg.service == config::Service::None {
+    if transcript.trim().is_empty() {
         return Ok(None);
     }
     let Some(system) = prompt::system_prompt(cfg.level, context, &cfg.vocab) else {
         return Ok(None);
     };
-    // No key yet (setup skipped): nothing to do, not a failure — the capsule
-    // would otherwise say "clean-up failed" on every dictation.
-    let Some(key) = secrets::api_key() else {
+    // No key for this service yet (setup skipped, or the service was just
+    // switched): nothing to do, not a failure — the capsule would otherwise
+    // say "clean-up failed" on every dictation. Another service's key is never
+    // used.
+    let Some(key) = usable_key(cfg) else {
         return Ok(None);
     };
 
@@ -209,7 +239,8 @@ mod tests {
 }
 
 /// `https://api.deepseek.com/v1` → `api.deepseek.com`
-fn host(base_url: &str) -> String {
+pub fn host(base_url: &str) -> String {
+    let base_url = base_url.trim();
     let rest = base_url.split("://").nth(1).unwrap_or(base_url);
     rest.split(['/', '?', '#'])
         .next()
@@ -226,18 +257,63 @@ mod host_tests {
         assert_eq!(host("https://api.deepseek.com"), "api.deepseek.com");
         assert_eq!(host("https://openrouter.ai/api/v1"), "openrouter.ai");
         assert_eq!(host("http://localhost:11434/v1"), "localhost:11434");
+        assert_eq!(host(" openrouter.ai/api/v1 "), "openrouter.ai");
+        assert_eq!(host(""), "");
+    }
+}
+
+#[cfg(test)]
+mod key_host_tests {
+    use super::*;
+
+    fn cfg(service: config::Service, base_url: &str) -> YuyinConfig {
+        YuyinConfig {
+            service,
+            base_url: base_url.into(),
+            ..YuyinConfig::default()
+        }
+    }
+
+    #[test]
+    fn nothing_is_sent_without_a_service_or_an_address() {
+        use config::Service;
+        let deepseek = "https://api.deepseek.com";
+        assert_eq!(
+            key_host(&cfg(Service::Deepseek, deepseek)).as_deref(),
+            Some("api.deepseek.com")
+        );
+        assert_eq!(
+            key_host(&cfg(Service::Custom, "https://openrouter.ai/api/v1")).as_deref(),
+            Some("openrouter.ai")
+        );
+        assert_eq!(key_host(&cfg(Service::Custom, "  ")), None);
+        assert_eq!(key_host(&cfg(Service::None, deepseek)), None);
+        // No usable key either way, so no capsule destination and no warm-up.
+        assert_eq!(destination(&cfg(Service::None, deepseek)), None);
+        assert_eq!(destination(&cfg(Service::Custom, "")), None);
+        let no_model = YuyinConfig {
+            model: " ".into(),
+            ..cfg(Service::Custom, "https://openrouter.ai/api/v1")
+        };
+        assert_eq!(destination(&no_model), None);
+    }
+
+    #[test]
+    fn an_address_without_a_scheme_uses_https() {
+        let c = cfg(config::Service::Custom, "openrouter.ai/api/v1/");
+        assert_eq!(
+            endpoint(&c, "/chat/completions"),
+            "https://openrouter.ai/api/v1/chat/completions"
+        );
+        let c = cfg(config::Service::Custom, "http://localhost:11434/v1");
+        assert_eq!(endpoint(&c, "/models"), "http://localhost:11434/v1/models");
     }
 }
 
 /// What the capsule names as the destination ("文字 → DeepSeek"), or `None`
 /// when this dictation will not send anything.
 pub fn destination(cfg: &YuyinConfig) -> Option<String> {
-    if cfg.level == config::Level::Raw || cfg.service == config::Service::None {
-        return None;
-    }
-    if !secrets::has_api_key() {
-        return None;
-    }
+    usable_key(cfg)?;
     if cfg.base_url.contains("deepseek.com") {
         Some("DeepSeek".into())
     } else {

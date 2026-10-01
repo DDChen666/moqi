@@ -54,10 +54,14 @@ export const yuyinApi = {
   getConfig: () => invoke<YuyinConfig>("yuyin_get_config"),
   setConfig: (config: YuyinConfig) =>
     invoke<void>("yuyin_set_config", { config }),
-  /** The key itself never reaches the frontend; only whether one is stored. */
-  hasApiKey: () => invoke<boolean>("yuyin_has_api_key"),
-  /** An empty string removes the key from the Keychain. */
-  setApiKey: (key: string) => invoke<void>("yuyin_set_api_key", { key }),
+  /** The key itself never reaches the frontend; only whether one is stored
+   * for the service at `baseUrl` (default: the saved service). Each service
+   * has its own key. */
+  hasApiKey: (baseUrl?: string) =>
+    invoke<boolean>("yuyin_has_api_key", { baseUrl }),
+  /** Saved for the service at `baseUrl`; an empty string removes it. */
+  setApiKey: (key: string, baseUrl?: string) =>
+    invoke<void>("yuyin_set_api_key", { key, baseUrl }),
   testPolish: (text: string) => invoke<string>("yuyin_test_polish", { text }),
   stats: () => invoke<YuyinStats>("yuyin_stats"),
   /** Keyed by the history entry's recording file name. */

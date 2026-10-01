@@ -1066,7 +1066,7 @@ pub fn run(cli_args: CliArgs) {
             yuyin::app_menu::apply(app.handle());
             // Yuyin fork: any keychain prompt for the API key shows now, not
             // mid-dictation.
-            yuyin::secrets::warm();
+            yuyin::secrets::warm(yuyin::polish::key_host(&yuyin::config::get(app.handle())));
 
             let mut settings = get_settings(app.handle());
 

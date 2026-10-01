@@ -30,7 +30,9 @@ const DEEPSEEK = {
   model: "deepseek-flash",
 };
 
-const ApiKeyRow: React.FC = () => {
+/** The key for the service at `baseUrl`: each service has its own, so one
+ * provider's key is never sent to another. */
+const ApiKeyRow: React.FC<{ baseUrl: string }> = ({ baseUrl }) => {
   const { t } = useTranslation();
   const [hasKey, setHasKey] = useState<boolean | null>(null);
   const [editing, setEditing] = useState(false);
@@ -40,16 +42,24 @@ const ApiKeyRow: React.FC = () => {
     null,
   );
 
+  const hasAddress = baseUrl.trim().length > 0;
+
   useEffect(() => {
+    setResult(null);
+    setEditing(false);
+    if (!hasAddress) {
+      setHasKey(false);
+      return;
+    }
     yuyinApi
-      .hasApiKey()
+      .hasApiKey(baseUrl)
       .then(setHasKey)
       .catch(() => setHasKey(false));
-  }, []);
+  }, [baseUrl, hasAddress]);
 
   const save = async () => {
     try {
-      await yuyinApi.setApiKey(key.trim());
+      await yuyinApi.setApiKey(key.trim(), baseUrl);
       setHasKey(key.trim().length > 0);
       setKey("");
       setEditing(false);
@@ -105,7 +115,10 @@ const ApiKeyRow: React.FC = () => {
                   ? t("moqi.settings.keyStored")
                   : t("moqi.settings.keyMissing")}
             </span>
-            <SmallButton onClick={() => setEditing(true)}>
+            <SmallButton
+              onClick={() => setEditing(true)}
+              disabled={!hasAddress}
+            >
               {hasKey
                 ? t("moqi.settings.replace")
                 : t("moqi.settings.enterKey")}
@@ -296,7 +309,15 @@ export const SettingsPage: React.FC = () => {
             <option value="none">{t("moqi.settings.serviceNone")}</option>
           </Select>
         </Row>
-        {!localOnly && <ApiKeyRow />}
+        {!localOnly && (
+          <ApiKeyRow
+            baseUrl={
+              service === "deepseek"
+                ? DEEPSEEK.base_url
+                : (config?.base_url ?? "")
+            }
+          />
+        )}
         {config && service === "custom" && (
           <CustomServiceRow config={config} save={save} />
         )}
