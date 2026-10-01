@@ -612,13 +612,8 @@ mod platform {
     /// Text longer than this (a terminal's whole scrollback) is not read.
     const MAX_FIELD_CHARS: isize = 200_000;
 
-    /// The selected text, to edit by voice. Not yet on macOS (would be the
-    /// focused element's AXSelectedText, skipping AXSecureTextField).
-    pub fn selected_text(_pid: i32) -> Option<String> {
-        None
-    }
-
-    pub fn focused_field(pid: i32) -> Option<(String, Option<String>)> {
+    /// The focused element of `pid` and its role.
+    fn focused_element(pid: i32) -> Option<(Owned, String)> {
         // SAFETY: AXUIElementCreateApplication returns a +1 reference.
         let app = unsafe { AXUIElementCreateApplication(pid) };
         if app.is_null() {
@@ -634,6 +629,36 @@ mod platform {
         let role = copy_attribute(&element, "AXRole")
             .and_then(|r| to_string(&r))
             .unwrap_or_default();
+        Some((element, role))
+    }
+
+    /// The text selected in `pid`'s focused element, to edit by voice. None
+    /// for password fields, nothing selected, or an app that doesn't expose
+    /// its selection to Accessibility.
+    pub fn selected_text(pid: i32) -> Option<String> {
+        let (element, role) = focused_element(pid)?;
+        if role == "AXSecureTextField" {
+            return None;
+        }
+        let selected = copy_attribute(&element, "AXSelectedText").filter(|v| {
+            // SAFETY: v is a live CF object; the length is only read for strings.
+            unsafe {
+                CFGetTypeID(v.0) == CFStringGetTypeID() && CFStringGetLength(v.0) <= MAX_FIELD_CHARS
+            }
+        })?;
+        let found = to_string(&selected).filter(|t| !t.is_empty());
+        log::debug!(
+            "selected text: {}",
+            found.as_ref().map_or("none".to_string(), |t| format!(
+                "{} chars",
+                t.chars().count()
+            ))
+        );
+        found
+    }
+
+    pub fn focused_field(pid: i32) -> Option<(String, Option<String>)> {
+        let (element, role) = focused_element(pid)?;
         if role == "AXSecureTextField" {
             return Some((role, None));
         }
@@ -689,6 +714,7 @@ mod platform_tests {
         // come back empty, however often it is asked.
         for _ in 0..50 {
             let _ = focused_field(pid);
+            assert!(selected_text(pid).is_none());
         }
     }
 }
