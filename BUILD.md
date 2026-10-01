@@ -167,5 +167,8 @@ Vulkan SDK 裝完要開新的終端機，或直接跑 `env.ps1`。
 **`cargo test` 的 `matches_the_evaluated_prompt_v3` 失敗**
 測試用的提示詞檔被轉成 CRLF 換行。`.gitattributes` 已經指定保持 LF；如果是在加入它之前 clone 的，刪掉 `src-tauri\src\yuyin\testdata\*.txt` 再 `git checkout -- src-tauri/src/yuyin/testdata`。
 
+**`bun run format:check` 說兩百多個檔案格式不對**
+Git for Windows 預設會把取出的檔案換成 CRLF 換行（`core.autocrlf=true`），Prettier 要的是 LF。提交時 Git 會換回 LF，repo 裡的檔案沒有問題。只檢查格式、不管換行可以用 `npx prettier --check --end-of-line auto .`；想完全避開，clone 時加上 `-c core.autocrlf=false`（只影響這一份 repo）。
+
 **App 打開後，第一次說話比較慢**
 顯示卡在第一次辨識時才編譯運算程式（RTX 4070 上約 17 秒）。默契在 Windows 上會在啟動時就載入模型並在背景先跑一次，所以只有「剛打開的前 20 秒內就說話」才會等比較久。
