@@ -41,6 +41,14 @@ fn is_openrouter(cfg: &YuyinConfig) -> bool {
 static MUST_REASON: Lazy<std::sync::Mutex<std::collections::HashSet<String>>> =
     Lazy::new(Default::default);
 
+/// A model on this computer (Ollama, LM Studio). Both take OpenAI's
+/// `reasoning_effort`; without "none", Gemma 4 E2B on Ollama reasons before
+/// it answers: 8.8 s for one sentence instead of 0.6 s (M3, 2026-10-01).
+fn is_local(cfg: &YuyinConfig) -> bool {
+    is_loopback(&host(&cfg.base_url))
+}
+const LOCAL_REASONING: &str = "reasoning_effort";
+
 fn endpoint(cfg: &YuyinConfig, path: &str) -> String {
     let base = cfg.base_url.trim().trim_end_matches('/');
     // "openrouter.ai/api/v1" typed without a scheme: HTTPS, as the host shown
@@ -95,6 +103,10 @@ pub fn warm_up(app: &AppHandle) {
     let Some(key) = usable_key(&cfg) else {
         return;
     };
+    if is_local(&cfg) {
+        load_local_model(&cfg);
+        return;
+    }
     let url = endpoint(&cfg, "/models");
     tauri::async_runtime::spawn(async move {
         let mut request = CLIENT.get(url).timeout(Duration::from_secs(5));
@@ -104,6 +116,32 @@ pub fn warm_up(app: &AppHandle) {
         let result = request.send().await;
         if let Err(e) = result {
             debug!("LLM connection warm-up failed: {e}");
+        }
+    });
+}
+
+/// Ollama unloads a model after five idle minutes, and loading Gemma 4 E2B
+/// again takes 6.6 s (0.55 s once loaded; M3, 2026-10-01). Asking for one
+/// token when the talk key goes down loads it while the user speaks. Nothing
+/// of the user's is in the request, and it never leaves this computer.
+fn load_local_model(cfg: &YuyinConfig) {
+    let url = endpoint(cfg, "/chat/completions");
+    let body = json!({
+        "model": cfg.model,
+        "messages": [{"role": "user", "content": "ok"}],
+        "max_tokens": 1,
+        "stream": false,
+        LOCAL_REASONING: "none",
+    });
+    tauri::async_runtime::spawn(async move {
+        let result = CLIENT
+            .post(url)
+            .timeout(Duration::from_secs(30))
+            .json(&body)
+            .send()
+            .await;
+        if let Err(e) = result {
+            debug!("local model warm-up failed: {e}");
         }
     });
 }
@@ -232,6 +270,10 @@ async fn run(
         body["reasoning"] = reasoning_off(&cfg.model);
         body["provider"] = json!({"sort": "latency"});
     }
+    let local = is_local(cfg);
+    if local {
+        body[LOCAL_REASONING] = json!("none");
+    }
 
     // Transparency (history, privacy card): what leaves the computer, and
     // where. A model on this computer is not "sent" anywhere.
@@ -252,6 +294,13 @@ async fn run(
         warn!("{} needs reasoning: {message}", cfg.model);
         lock_must_reason().insert(cfg.model.clone());
         body["reasoning"] = reasoning_off(&cfg.model);
+        response = send(cfg, &key, &body, openrouter).await?;
+    }
+    if local && response.status() == reqwest::StatusCode::BAD_REQUEST {
+        // A server or model that doesn't know the setting: ask without it.
+        if let Some(fields) = body.as_object_mut() {
+            fields.remove(LOCAL_REASONING);
+        }
         response = send(cfg, &key, &body, openrouter).await?;
     }
     let status = response.status();
@@ -536,6 +585,8 @@ mod openrouter_tests {
         assert_eq!(usable_key(&cfg).as_deref(), Some(""));
         assert_eq!(destination(&cfg), None);
         assert_eq!(local_timeout(&cfg), 15_000);
+        assert!(is_local(&cfg));
+        assert!(!is_local(&YuyinConfig::default()));
     }
 
     #[test]
