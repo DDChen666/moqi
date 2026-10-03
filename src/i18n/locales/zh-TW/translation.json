@@ -1044,6 +1044,9 @@
       "costPerThousand": "約 US${{cost}}／千句",
       "getKey": "到 {{service}} 申請 key",
       "testResultTimed": "整理結果（{{seconds}} 秒）：{{text}}",
+      "localModelName": "本機模型",
+      "rawSkips": "你已經設定好 {{service}}，但「原話」不會用到它：說的話不會送去整理。",
+      "useTidy": "改用「整理」",
       "openrouterNotes": {
         "deepseek": "推薦：最便宜，中文好",
         "gemini": "速度快",

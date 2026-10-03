@@ -49,6 +49,16 @@ import {
 } from "./ui";
 import { BackIcon, ChevronIcon } from "./icons";
 import { tapKeyLabel } from "./format";
+import { serviceName } from "./HomePage";
+
+/** "https://api.example.com/v1" → "api.example.com"; a bare host as it is. */
+const hostOf = (url: string) => {
+  try {
+    return new URL(url.includes("://") ? url : `https://${url}`).host;
+  } catch {
+    return url;
+  }
+};
 
 const DEEPSEEK = {
   base_url: "https://api.deepseek.com",
@@ -69,10 +79,12 @@ const KEY_PAGES: Partial<Record<Service, { name: string; url: string }>> = {
 
 /** The key for the service at `baseUrl`: each service has its own, so one
  * provider's key is never sent to another. */
-const ApiKeyRow: React.FC<{ baseUrl: string; service: Service }> = ({
-  baseUrl,
-  service,
-}) => {
+const ApiKeyRow: React.FC<{
+  baseUrl: string;
+  service: Service;
+  /** Whether a key is stored, once known and after every change. */
+  onKeyKnown?: (hasKey: boolean) => void;
+}> = ({ baseUrl, service, onKeyKnown }) => {
   const { t } = useTranslation();
   const keyPage = KEY_PAGES[service];
   const [hasKey, setHasKey] = useState<boolean | null>(null);
@@ -99,6 +111,10 @@ const ApiKeyRow: React.FC<{ baseUrl: string; service: Service }> = ({
       .then(setHasKey)
       .catch(() => setHasKey(false));
   }, [baseUrl, hasAddress]);
+
+  useEffect(() => {
+    if (hasKey !== null) onKeyKnown?.(hasKey);
+  }, [hasKey, onKeyKnown]);
 
   const save = async () => {
     try {
@@ -768,6 +784,7 @@ export const SettingsPage: React.FC = () => {
   const { settings, updateSetting } = useSettings();
   const [config, setConfig] = useState<YuyinConfig | null>(null);
   const [about, setAbout] = useState(false);
+  const [keyReady, setKeyReady] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
   // About is a sub-view, not a page: the window only resets the scroll on a
@@ -811,6 +828,18 @@ export const SettingsPage: React.FC = () => {
   const service: Service = config?.service ?? "deepseek";
   const localOnly = service === "none";
   const level: Level = localOnly ? "raw" : (config?.level ?? "tidy");
+  // A saved key (or a chosen local model) does nothing at Raw. Users who set
+  // up DeepSeek expect it to work, so say so where the level is chosen.
+  const serviceReady =
+    service === "local" ? Boolean(config?.model) : !localOnly && keyReady;
+  const readyName =
+    service === "deepseek"
+      ? "DeepSeek"
+      : service === "openrouter"
+        ? "OpenRouter"
+        : service === "local"
+          ? t("moqi.settings.localModelName")
+          : serviceName(hostOf(config?.base_url ?? ""));
   const language =
     getSupportedLanguage(settings?.app_language) || i18n.language;
   const tapKey = tapKeyLabel(
@@ -860,6 +889,16 @@ export const SettingsPage: React.FC = () => {
           <p className="m-0 text-[12px] leading-relaxed text-text/80">
             {t(`moqi.settings.levelNote.${level}`)}
           </p>
+          {config && level === "raw" && serviceReady && (
+            <div className="flex items-center gap-3 rounded-lg bg-logo-primary/10 px-3 py-2">
+              <p className="m-0 flex-1 text-[12px] leading-relaxed text-text">
+                {t("moqi.settings.rawSkips", { service: readyName })}
+              </p>
+              <SmallButton onClick={() => save({ level: "tidy" })}>
+                {t("moqi.settings.useTidy")}
+              </SmallButton>
+            </div>
+          )}
         </div>
         <Row
           label={t("moqi.editSelection.title")}
@@ -919,6 +958,7 @@ export const SettingsPage: React.FC = () => {
         {!localOnly && service !== "local" && (
           <ApiKeyRow
             service={service}
+            onKeyKnown={setKeyReady}
             baseUrl={
               service === "deepseek"
                 ? DEEPSEEK.base_url
