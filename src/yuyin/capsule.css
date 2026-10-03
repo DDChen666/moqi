@@ -146,23 +146,11 @@
   opacity: 0;
 }
 
+/* Drawn on a canvas in whole device pixels (Capsule.tsx): 2 px hairline bars
+   that stay crisp on a 1× display too. Dim while silent, bright on voice. */
 .yy-wave {
-  display: flex;
-  align-items: center;
-  gap: 2.5px;
-  height: 20px;
-  flex: none;
-}
-.yy-wave i {
   display: block;
-  width: 2px;
-  height: 2px;
-  border-radius: 1px;
-  background: rgba(245, 245, 247, 0.35);
-  transition: background 0.4s;
-}
-.yy-cap.voiced .yy-wave i {
-  background: rgba(245, 245, 247, 0.95);
+  flex: none;
 }
 
 .yy-ctx {

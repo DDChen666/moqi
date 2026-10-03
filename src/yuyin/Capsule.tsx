@@ -33,9 +33,36 @@ const BARS = 13;
 const ENVELOPE = [
   0.25, 0.4, 0.58, 0.74, 0.88, 0.97, 1, 0.97, 0.88, 0.74, 0.58, 0.4, 0.25,
 ];
+// The waveform's design size in CSS px (Retina): 2 px bars, 2.5 px apart,
+// 2–19 px tall in a 20 px row.
+const BAR_W = 2;
+const BAR_GAP = 2.5;
+const WAVE_H = 20;
+// Loudness the bars are scaled against (see the frame loop). Kept between
+// recordings so the first word is already the right size; this first guess
+// sits between a laptop's microphone and a quiet USB one.
+let loudness = 0.5;
+const MIN_LOUDNESS = 0.3; // caps the boost at about 3×, so pauses stay flat
+const NOISE_GATE = 0.04;
+const LOUDNESS_FALLOFF = 0.84; // per second: a loud word fades out of it in ~4 s
 const INTRO_MS = 1400;
 const POLISH_LABEL_DELAY_MS = 300; // criterion 2: only say "tidying" if it takes a while
 const TIMER_AFTER_S = 10; // criterion 11
+
+/** The waveform in whole device pixels, so every bar is equally sharp at any
+ * display scale. At 2× this is the design (4 px bars, 5 px gaps); at 1× a
+ * 2 px bar fell on uneven pixel columns and looked blocky, so it gets 3. */
+const waveGeometry = (dpr: number) => {
+  const bar = Math.max(3, Math.round(BAR_W * dpr));
+  const gap = Math.max(2, Math.round(BAR_GAP * dpr));
+  return {
+    dpr,
+    bar,
+    gap,
+    width: BARS * bar + (BARS - 1) * gap,
+    height: Math.round(WAVE_H * dpr),
+  };
+};
 
 const ContextIcon: React.FC<{ context: WritingContext }> = ({ context }) => {
   switch (context) {
@@ -108,7 +135,7 @@ export const Capsule: React.FC<CapsuleProps> = ({
   const { t } = useTranslation();
   const capRef = useRef<HTMLDivElement>(null);
   const shellRef = useRef<HTMLDivElement>(null);
-  const barRefs = useRef<(HTMLElement | null)[]>([]);
+  const waveRef = useRef<HTMLCanvasElement>(null);
   const targetLevel = useRef(0);
   const [shown, setShown] = useState(false);
   const [ctx, setCtx] = useState<ContextEvent | null>(null);
@@ -159,16 +186,40 @@ export const Capsule: React.FC<CapsuleProps> = ({
   // Waveform and rim: one damped spring per bar, driven by the mic level.
   useEffect(() => {
     if (!visible || state !== "recording") return;
-    const bars = barRefs.current.map((el) => ({ el, h: 2, v: 0, j: 1 }));
+    const canvas = waveRef.current;
+    const pen = canvas?.getContext("2d") ?? null;
+    const g = waveGeometry(window.devicePixelRatio || 1);
+    if (canvas) {
+      canvas.width = g.width;
+      canvas.height = g.height;
+    }
+    const bars = Array.from({ length: BARS }, () => ({ h: 2, v: 0, j: 1 }));
     let level = 0;
     let angle = 0;
+    let alpha = 0.35;
+    let last = performance.now();
     let raf = 0;
-    const frame = () => {
-      level += (targetLevel.current - level) * 0.16;
+    const frame = (now: number) => {
+      const dt = Math.min(0.1, Math.max(0, now - last) / 1000);
+      last = now;
+      // A quiet microphone (a USB mic at arm's length reads ~20 dB below a
+      // laptop's) barely moved the bars. Scale against the recent loudness
+      // instead: it jumps to each new peak and fades over a few seconds, so
+      // a soft voice fills the bars like a loud one.
+      const raw = targetLevel.current;
+      loudness = Math.max(
+        raw,
+        MIN_LOUDNESS,
+        loudness * Math.pow(LOUDNESS_FALLOFF, dt),
+      );
+      const scaled = Math.min(
+        1,
+        Math.max(0, raw - NOISE_GATE) / (loudness - NOISE_GATE),
+      );
+      level += (scaled - level) * 0.16;
       const cap = capRef.current;
       if (cap) {
         cap.style.setProperty("--level", level.toFixed(3));
-        cap.classList.toggle("voiced", level > 0.1);
         if (!reducedMotion) {
           angle = (angle + 0.25 + level * 1.1) % 360;
           cap.style.setProperty("--angle", `${angle.toFixed(1)}deg`);
@@ -179,8 +230,26 @@ export const Capsule: React.FC<CapsuleProps> = ({
         const goal = 2 + level * ENVELOPE[i] * b.j * 17;
         b.v = (b.v + (goal - b.h) * 0.22) * 0.62;
         b.h = Math.max(2, Math.min(19, b.h + b.v));
-        if (b.el) b.el.style.height = `${b.h.toFixed(1)}px`;
       });
+      if (pen) {
+        // Dim while silent, bright while speaking (fades in ~0.4 s).
+        alpha += ((level > 0.1 ? 0.95 : 0.35) - alpha) * Math.min(1, dt / 0.13);
+        const r = g.bar / 2;
+        pen.clearRect(0, 0, g.width, g.height);
+        pen.fillStyle = `rgba(245, 245, 247, ${alpha.toFixed(3)})`;
+        pen.beginPath();
+        bars.forEach((b, i) => {
+          const h = Math.max(g.bar, b.h * g.dpr);
+          const x = i * (g.bar + g.gap);
+          const y = (g.height - h) / 2;
+          pen.moveTo(x, y + r);
+          pen.arc(x + r, y + r, r, Math.PI, 0);
+          pen.lineTo(x + g.bar, y + h - r);
+          pen.arc(x + r, y + h - r, r, 0, Math.PI);
+          pen.closePath();
+        });
+        pen.fill();
+      }
       raf = requestAnimationFrame(frame);
     };
     raf = requestAnimationFrame(frame);
@@ -191,6 +260,7 @@ export const Capsule: React.FC<CapsuleProps> = ({
   }, [visible, state]);
 
   const recording = state === "recording";
+  const wave = waveGeometry(window.devicePixelRatio || 1);
   const working = state === "transcribing" || state === "processing";
   const showTimer = recording && elapsed >= TIMER_AFTER_S;
   const handsFree = recording && ctx?.hands_free === true;
@@ -231,16 +301,15 @@ export const Capsule: React.FC<CapsuleProps> = ({
           {recording && (
             <>
               <span className="yy-rec" />
-              <span className="yy-wave">
-                {Array.from({ length: BARS }, (_, i) => (
-                  <i
-                    key={i}
-                    ref={(el) => {
-                      barRefs.current[i] = el;
-                    }}
-                  />
-                ))}
-              </span>
+              <canvas
+                className="yy-wave"
+                ref={waveRef}
+                aria-hidden="true"
+                style={{
+                  width: wave.width / wave.dpr,
+                  height: wave.height / wave.dpr,
+                }}
+              />
               {showCtx && ctx && (
                 <span className="yy-ctx">
                   <ContextIcon context={ctx.context} />
